@@ -9,29 +9,33 @@
 
 ## 第 2 步：推送代码（在本机 PowerShell）
 
-把下面命令里的 `你的GitHub用户名` 换成你的账号，然后整段执行：
+直接执行（已配置用户名 **Zinong2017**）：
 
 ```powershell
 cd "e:\Study_Ai\Zinong2017"
-.\deploy.ps1 -RepoUrl "https://github.com/你的GitHub用户名/zinong2017.git"
+.\deploy.ps1 -RepoUrl "https://github.com/Zinong2017/zinong2017.git"
+```
+
+或：
+
+```powershell
+cd "e:\Study_Ai\Zinong2017"
+git push -u origin main
 ```
 
 首次会弹出 GitHub 登录，按提示完成即可。
 
 ## 第 3 步：开启 Pages（约 1 分钟）
 
-1. 打开你的仓库 → **Settings** → **Pages**  
-2. **Build and deployment** → **Source** 选 **GitHub Actions**  
-3. 打开 **Actions** 标签，等绿色 ✓  
+1. 打开 **Actions**，等最新一次 **Deploy to GitHub Pages** 变绿 ✓（会生成 `gh-pages` 分支）  
+2. 打开 **Settings** → **Pages**  
+3. **Build and deployment** → **Source** 选 **Deploy from a branch**  
+4. **Branch** 选 **`gh-pages`**，文件夹选 **`/ (root)`**，点 **Save**  
+
+> 若 Actions 失败：先完成上面第 3 步的 branch 设置，再在 Actions 里点 **Re-run all jobs**。
 
 ## 你的公网地址
 
 ```
-https://你的GitHub用户名.github.io/zinong2017/
-```
-
----
-
-**示例**：若用户名为 `Zinong2017`，则地址为：
-
 https://Zinong2017.github.io/zinong2017/
+```
