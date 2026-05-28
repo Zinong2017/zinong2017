@@ -13,7 +13,15 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
   exit 1
 }
 
-$remoteUrl = Read-Host "请输入 GitHub 仓库地址 (HTTPS)，例如 https://github.com/你的用户名/zinong2017.git"
+param(
+  [string]$RepoUrl = ""
+)
+
+if ([string]::IsNullOrWhiteSpace($RepoUrl)) {
+  $RepoUrl = Read-Host "请输入 GitHub 仓库地址 (HTTPS)，例如 https://github.com/你的用户名/zinong2017.git"
+}
+
+$remoteUrl = $RepoUrl
 
 if ([string]::IsNullOrWhiteSpace($remoteUrl)) {
   Write-Host "已取消。" -ForegroundColor Yellow

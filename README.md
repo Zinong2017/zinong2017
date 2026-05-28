@@ -6,6 +6,12 @@ AI（Agent）产品经理 · 产品设计专业。极简高级风单页，纯 HT
 
 轮播与作品图已放在 `assets/img/`（本地 JPG，手机端无需访问外网图床）。部署时请**连同 `assets` 文件夹一起上传**。
 
+## 公网发布（让所有人访问）
+
+详见 **[DEPLOY.md](DEPLOY.md)**。最快方式：打开 [Netlify Drop](https://app.netlify.com/drop)，拖入项目里的 `zinong2017-site.zip`。
+
+永久免费地址推荐 GitHub Pages：创建公开仓库后运行 `.\deploy.ps1`。
+
 ## 本地预览
 
 > 手机预览请用电脑局域网地址（如 `http://192.168.x.x:8080`），不要只发 `file://` 路径。
