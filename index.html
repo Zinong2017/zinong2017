@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="theme-color" content="#F7FAFC">
+  <meta name="description" content="Zinong2017 — AI Agent 产品经理 · 产品设计专业 · 专注智能体体验与产品策略">
+  <title>Zinong2017 | AI Agent 产品经理</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap"></noscript>
+</head>
+<body>
+  <!-- 模块 1：顶部固定导航 -->
+  <header class="navbar" id="navbar">
+    <div class="navbar__inner">
+      <a href="#hero" class="navbar__logo">Zinong<span class="navbar__logo-year">2017</span></a>
+      <nav class="navbar__nav" id="navMenu" aria-label="主导航">
+        <a href="#hero" class="nav-link active">首页</a>
+        <a href="#about" class="nav-link">关于我</a>
+        <a href="#works" class="nav-link">产品作品</a>
+        <a href="#journal" class="nav-link">思考随笔</a>
+        <a href="#contact" class="nav-link">联系我</a>
+      </nav>
+      <div class="navbar__actions">
+        <button type="button" class="navbar__hamburger" id="hamburgerBtn" aria-label="打开菜单" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+    <div class="mobile-nav" id="mobileNav" aria-hidden="true">
+      <a href="#hero" class="mobile-nav__link">首页</a>
+      <a href="#about" class="mobile-nav__link">关于我</a>
+      <a href="#works" class="mobile-nav__link">产品作品</a>
+      <a href="#journal" class="mobile-nav__link">思考随笔</a>
+      <a href="#contact" class="mobile-nav__link">联系我</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- 模块 2：全屏海报轮播 -->
+    <section class="hero" id="hero" aria-label="海报轮播">
+      <div class="carousel" id="carousel">
+        <div class="carousel__track" id="carouselTrack">
+          <div class="carousel__slide active" data-index="0">
+            <img class="carousel__img" src="assets/img/hero-1.jpg" alt="AI 与神经网络视觉" loading="eager" width="1920" height="1080" decoding="async">
+            <div class="carousel__overlay"></div>
+            <div class="carousel__content">
+              <p class="carousel__badge">AI Agent · Product</p>
+              <h1 class="carousel__title">设计会思考的 Agent</h1>
+              <p class="carousel__subtitle">Zinong2017 · AI 产品经理 · 用产品设计思维定义下一代智能体体验</p>
+            </div>
+          </div>
+          <div class="carousel__slide" data-index="1">
+            <img class="carousel__img" data-src="assets/img/hero-2.jpg" alt="产品协作与工作坊" loading="lazy" width="1920" height="1080" decoding="async">
+            <div class="carousel__overlay"></div>
+            <div class="carousel__content">
+              <p class="carousel__badge">Strategy · UX</p>
+              <h1 class="carousel__title">从用户意图到可交付方案</h1>
+              <p class="carousel__subtitle">需求拆解 · 流程设计 · 原型验证 · 与研发高效对齐</p>
+            </div>
+          </div>
+          <div class="carousel__slide" data-index="2">
+            <img class="carousel__img" data-src="assets/img/hero-3.jpg" alt="界面与视觉设计" loading="lazy" width="1920" height="1080" decoding="async">
+            <div class="carousel__overlay"></div>
+            <div class="carousel__content">
+              <p class="carousel__badge">Design · Craft</p>
+              <h1 class="carousel__title">设计专业出身，审美是基本功</h1>
+              <p class="carousel__subtitle">信息架构 · 交互细节 · 视觉一致性 · 让复杂 AI 能力「用得懂」</p>
+            </div>
+          </div>
+          <div class="carousel__slide" data-index="3">
+            <img class="carousel__img" data-src="assets/img/hero-4.jpg" alt="团队协作共创" loading="lazy" width="1920" height="1080" decoding="async">
+            <div class="carousel__overlay"></div>
+            <div class="carousel__content">
+              <p class="carousel__badge">Build · Ship</p>
+              <h1 class="carousel__title">连接模型、产品与真实场景</h1>
+              <p class="carousel__subtitle">欢迎探讨 Agent 产品、设计系统与 AI 应用落地 — 一起把想法做成产品</p>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="carousel__arrow carousel__arrow--prev" id="carouselPrev" aria-label="上一张">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <button type="button" class="carousel__arrow carousel__arrow--next" id="carouselNext" aria-label="下一张">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="carousel__dots" id="carouselDots" role="tablist" aria-label="轮播指示器"></div>
+      </div>
+    </section>
+
+    <!-- 模块 3：关于我 -->
+    <section class="section about" id="about">
+      <div class="container reveal">
+        <div class="about__layout">
+          <div class="about__avatar-wrap">
+            <div class="about__avatar about__avatar--brand" aria-hidden="true">Z</div>
+          </div>
+          <div class="about__text">
+            <h2 class="about__name">Zinong2017</h2>
+            <p class="about__tag">AI（Agent）产品经理 · 产品设计专业</p>
+            <div class="about__chips">
+              <span class="chip">智能体产品</span>
+              <span class="chip">体验设计</span>
+              <span class="chip">产品策略</span>
+            </div>
+            <p class="about__bio">
+              我是 Zinong2017，专注 AI Agent 方向的产品工作。设计专业背景让我习惯从
+              「用户感知」倒推能力边界：对话是否可信、任务是否可预期、失败是否可恢复。
+              日常在做需求定义、交互与流程设计、原型评审，以及与算法、研发的对齐落地。
+              这个站点记录我的产品思考、案例片段与对 Agent 时代的观察，也欢迎你来聊合作与灵感。
+            </p>
+            <a href="#skills" class="btn btn--primary">查看能力标签</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 模块 4：技能标签 -->
+    <section class="section skills" id="skills">
+      <div class="container">
+        <header class="section-header reveal">
+          <h2 class="section-title">我的擅长 / 能力矩阵</h2>
+          <p class="section-desc">设计思维 × 产品方法 × Agent 场景理解</p>
+        </header>
+        <div class="skills__grid">
+          <article class="skill-card reveal">
+            <div class="skill-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            </div>
+            <h3 class="skill-card__title">Agent 产品设计</h3>
+            <p class="skill-card__desc">意图识别、工具调用、多轮任务与记忆策略</p>
+          </article>
+          <article class="skill-card reveal">
+            <div class="skill-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+            </div>
+            <h3 class="skill-card__title">UX / 交互设计</h3>
+            <p class="skill-card__desc">对话流、状态反馈、异常与空状态体验</p>
+          </article>
+          <article class="skill-card reveal">
+            <div class="skill-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            </div>
+            <h3 class="skill-card__title">产品策略</h3>
+            <p class="skill-card__desc">场景定义、MVP 拆解、指标与迭代节奏</p>
+          </article>
+          <article class="skill-card reveal">
+            <div class="skill-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+            </div>
+            <h3 class="skill-card__title">原型与可视化</h3>
+            <p class="skill-card__desc">Figma 高保真、设计规范与演示叙事</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 模块 5：作品展示 -->
+    <section class="section works" id="works">
+      <div class="container">
+        <header class="section-header reveal">
+          <h2 class="section-title">产品作品 / 案例片段</h2>
+          <p class="section-desc">Agent 体验、数据看板与协作原型 — 示意展示，可替换为真实项目截图</p>
+        </header>
+        <div class="gallery reveal">
+          <figure class="gallery__item" data-full="assets/img/work-1.jpg">
+            <img src="assets/img/work-1.jpg" alt="AI 与智能体视觉概念" loading="lazy" width="600" height="400" decoding="async">
+            <figcaption class="gallery__caption">智能体对话 · 任务编排</figcaption>
+          </figure>
+          <figure class="gallery__item" data-full="assets/img/work-2.jpg">
+            <img src="assets/img/work-2.jpg" alt="产品数据看板与指标" loading="lazy" width="600" height="400" decoding="async">
+            <figcaption class="gallery__caption">效果度量 · 迭代看板</figcaption>
+          </figure>
+          <figure class="gallery__item" data-full="assets/img/work-3.jpg">
+            <img src="assets/img/work-3.jpg" alt="代码与产品设计协作" loading="lazy" width="600" height="400" decoding="async">
+            <figcaption class="gallery__caption">高保真原型 · 设计系统</figcaption>
+          </figure>
+          <figure class="gallery__item" data-full="assets/img/work-4.jpg">
+            <img src="assets/img/work-4.jpg" alt="产品评审与团队协作" loading="lazy" width="600" height="400" decoding="async">
+            <figcaption class="gallery__caption">方案评审 · 跨团队协作</figcaption>
+          </figure>
+          <figure class="gallery__item" data-full="assets/img/work-5.jpg">
+            <img src="assets/img/work-5.jpg" alt="移动端产品界面" loading="lazy" width="600" height="400" decoding="async">
+            <figcaption class="gallery__caption">移动端 · 轻量 Agent</figcaption>
+          </figure>
+          <figure class="gallery__item" data-full="assets/img/work-6.jpg">
+            <img src="assets/img/work-6.jpg" alt="金融科技产品界面设计" loading="lazy" width="600" height="400" decoding="async">
+            <figcaption class="gallery__caption">视觉规范 · 品牌界面</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 模块 6：日常随笔 -->
+    <section class="section journal" id="journal">
+      <div class="container container--narrow">
+        <header class="section-header reveal">
+          <h2 class="section-title">思考 / 随笔</h2>
+          <p class="section-desc">Agent 产品观察、设计方法与职业思考</p>
+        </header>
+        <article class="journal-entry reveal">
+          <time class="journal-entry__date" datetime="2026-05-22">2026年5月22日</time>
+          <h3 class="journal-entry__title">Agent 产品的「可预期性」比「聪明」更重要</h3>
+          <p class="journal-entry__text">
+            用户并不总想要一个无所不能的模型，他们更需要知道：现在进行到哪一步、
+            失败时怎么办、哪些事 Agent 不会替我做。作为 PM，我会把状态机、
+            确认节点和回滚路径写进 PRD，而不是只追求单次回答的惊艳。
+          </p>
+          <img class="journal-entry__img" src="assets/img/journal-1.jpg" alt="AI 产品工作场景" loading="lazy" width="800" height="450" decoding="async">
+        </article>
+        <article class="journal-entry reveal">
+          <time class="journal-entry__date" datetime="2026-05-08">2026年5月8日</time>
+          <h3 class="journal-entry__title">设计专业背景，如何帮助我做 AI 产品</h3>
+          <p class="journal-entry__text">
+            设计训练的是「约束下的最优解」：信息层级、视觉节奏、交互反馈。
+            迁移到 Agent 场景，同样适用 — 对话不是聊天室，而是一条有目标的任务流。
+            这个站点也是一次小实验：用极简前端，把自己的产品叙事说清楚。
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- 模块 7：联系我 -->
+    <section class="section contact" id="contact">
+      <div class="container container--narrow reveal">
+        <h2 class="section-title section-title--center">与我联系</h2>
+        <p class="contact__text">
+          如果你在探索 Agent 产品、体验设计或产品合作，欢迎来信。
+          也接受产品咨询、方案评审与职业交流。
+        </p>
+        <p class="contact__email">
+          <span class="contact__label">邮箱</span>
+          <button type="button" class="contact__copy" id="copyEmail" data-email="zinong2017@example.com">zinong2017@example.com</button>
+          <span class="contact__hint" id="copyHint" aria-live="polite"></span>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <!-- 模块 8：页脚 -->
+  <footer class="footer" id="footer">
+    <div class="footer__social">
+      <p class="footer__social-title">找到 Zinong2017 / 社交与协作</p>
+      <div class="social-links">
+        <a href="#" class="social-link" data-wechat title="微信" aria-label="微信">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M8.5 4C4.36 4 1 6.69 1 10c0 1.89 1.08 3.56 2.78 4.66L3 19l4.55-2.37c.89.15 1.82.24 2.78.24 4.14 0 7.5-2.69 7.5-6 0-3.31-3.36-6-7.5-6zm-2.1 5.4c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm4.2 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm7.8-1.4c-3.64 0-6.6 2.46-6.6 5.5 0 1.74.93 3.29 2.38 4.3L14 19l3.35-1.75c.72.2 1.48.31 2.25.31 3.64 0 6.6-2.46 6.6-5.5S19.84 8 16.2 8zm-2.52 4.2c-.41 0-.75-.34-.75-.75s.34-.75.75-.75.75.34.75.75-.34.75-.75.75zm5.04 0c-.41 0-.75-.34-.75-.75s.34-.75.75-.75.75.34.75.75-.34.75-.75.75z"/></svg>
+          <span class="social-link__name">微信</span>
+        </a>
+        <a href="https://weibo.com" target="_blank" rel="noopener noreferrer" class="social-link" title="微博" aria-label="微博">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M10.06 2.5c-4.2.5-7.5 3.9-7.5 8.1 0 1.2.3 2.3.8 3.3l-1.2 4.4 4.6-1.2c1 .5 2.1.8 3.3.8 4.2 0 7.6-3.4 8.1-7.5-3.5-.6-6.4-3.5-7-7.1h-.1zM20 10.5c-.3 3.8-3.5 6.8-7.4 6.8-.8 0-1.6-.1-2.3-.4l-2.5.7.7-2.4c-.4-.7-.6-1.5-.6-2.3 0-3.9 3.2-7.1 7.1-7.4 3.9-.3 7.2 2.6 7.2 6.5 0 .5 0 1-.2 1.5z"/></svg>
+          <span class="social-link__name">微博</span>
+        </a>
+        <a href="https://www.xiaohongshu.com" target="_blank" rel="noopener noreferrer" class="social-link" title="小红书" aria-label="小红书">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><rect x="3" y="3" width="18" height="18" rx="4"/><text x="12" y="16" text-anchor="middle" fill="#fff" font-size="8" font-weight="bold">书</text></svg>
+          <span class="social-link__name">小红书</span>
+        </a>
+        <a href="https://www.bilibili.com" target="_blank" rel="noopener noreferrer" class="social-link" title="B站" aria-label="B站">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M17.5 4.5h-2.8l-.7-2h-4l-.7 2H6.5L5 8v11.5h14V8l-1.5-3.5zM9 10.5v6h1.5v-6H9zm4.5 0v6H15v-6h-1.5z"/></svg>
+          <span class="social-link__name">B站</span>
+        </a>
+        <a href="https://www.douyin.com" target="_blank" rel="noopener noreferrer" class="social-link" title="抖音" aria-label="抖音">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M16 8.5c1.5 1 3.5 1.5 5.5 1.5V6c-2 0-3.8-.7-5.5-2v8.5c0 3.3-2.7 6-6 6s-6-2.7-6-6 2.7-6 6-6c.5 0 1 .1 1.5.2V8c-.5-.1-1-.2-1.5-.2-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8V8.5z"/></svg>
+          <span class="social-link__name">抖音</span>
+        </a>
+        <a href="https://github.com/Zinong2017" target="_blank" rel="noopener noreferrer" class="social-link" title="GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.66-.22.66-.48 0-.24-.01-.87-.01-1.7-2.78.6-3.37-1.34-3.37-1.34-.45-1.15-1.11-1.46-1.11-1.46-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.58 9.58 0 0112 6.8c.85.004 1.71.115 2.51.337 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85 0 1.33-.01 2.4-.01 2.73 0 .27.16.58.67.48A10.01 10.01 0 0022 12c0-5.52-4.48-10-10-10z"/></svg>
+          <span class="social-link__name">GitHub</span>
+        </a>
+        <a href="mailto:zinong2017@example.com" target="_blank" rel="noopener noreferrer" class="social-link" title="邮箱" aria-label="邮箱">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <span class="social-link__name">邮箱</span>
+        </a>
+        <a href="https://www.zhihu.com" target="_blank" rel="noopener noreferrer" class="social-link" title="知乎" aria-label="知乎">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <span class="social-link__name">知乎</span>
+        </a>
+      </div>
+    </div>
+    <div class="footer__copy">
+      <p>© 2026 Zinong2017 All Rights Reserved</p>
+      <p class="footer__note">设计智能体体验 · 让 AI 产品可被理解、可被信任</p>
+    </div>
+  </footer>
+
+  <!-- 图片预览弹窗 -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="图片预览" hidden>
+    <button type="button" class="lightbox__close" id="lightboxClose" aria-label="关闭">&times;</button>
+    <img class="lightbox__img" id="lightboxImg" src="" alt="大图预览">
+  </div>
+
+  <!-- 微信二维码弹窗 -->
+  <div class="modal" id="wechatModal" role="dialog" aria-modal="true" aria-label="微信二维码" hidden>
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__content">
+      <button type="button" class="modal__close" data-close-modal aria-label="关闭">&times;</button>
+      <h3 class="modal__title">扫码添加微信</h3>
+      <img class="modal__qr" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Zinong2017" alt="微信二维码" width="200" height="200">
+      <p class="modal__hint">扫码备注「Agent 产品」更易通过</p>
+    </div>
+  </div>
+
+  <script src="js/main.js" defer></script>
+</body>
+</html>
