@@ -37,5 +37,13 @@ git push -u origin main
 ## 你的公网地址
 
 ```
-https://Zinong2017.github.io/zinong2017/
+https://zinong2017.github.io/zinong2017/
 ```
+
+**安卓 / 国内网络**：若 GitHub 打不开，可试 jsDelivr 镜像：
+
+```
+https://cdn.jsdelivr.net/gh/Zinong2017/zinong2017@gh-pages/
+```
+
+请用**完整 URL**（带末尾 `/`），不要省略 `zinong2017` 路径。

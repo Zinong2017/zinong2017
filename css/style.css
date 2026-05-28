@@ -85,7 +85,7 @@ button {
   right: 0;
   z-index: 1000;
   height: var(--nav-height);
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transition: background var(--transition), box-shadow var(--transition), border-color var(--transition);
@@ -232,9 +232,14 @@ button {
 .hero {
   margin-top: var(--nav-height);
   height: calc(100vh - var(--nav-height));
-  height: calc(100dvh - var(--nav-height));
   min-height: 360px;
   max-height: 900px;
+}
+
+@supports (height: 100dvh) {
+  .hero {
+    height: calc(100dvh - var(--nav-height));
+  }
 }
 
 .carousel {
@@ -896,7 +901,17 @@ button {
 @media (max-width: 767px) {
   .hero {
     min-height: 320px;
-    max-height: 72dvh;
+    max-height: 520px;
+  }
+
+  @supports (max-height: 72dvh) {
+    .hero {
+      max-height: 72dvh;
+    }
+  }
+
+  .navbar {
+    background: rgba(255, 255, 255, 0.96);
   }
 
   .carousel__title {

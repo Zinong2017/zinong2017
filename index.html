@@ -7,9 +7,21 @@
   <meta name="theme-color" content="#F7FAFC">
   <meta name="description" content="Zinong2017 — AI Agent 产品经理 · 产品设计专业 · 专注智能体体验与产品策略">
   <title>Zinong2017 | AI Agent 产品经理</title>
+  <!-- GitHub Pages 子路径：修复安卓/微信浏览器相对路径 404 -->
+  <base href="./" id="site-base">
+  <script>
+    (function () {
+      var host = location.hostname || '';
+      var path = location.pathname || '/';
+      if (/github\.io$/i.test(host)) {
+        document.getElementById('site-base').href = '/zinong2017/';
+        if (/\/zinong2017$/.test(path)) {
+          location.replace(path + '/' + location.search + location.hash);
+        }
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap"></noscript>
 </head>
 <body>
   <!-- 模块 1：顶部固定导航 -->
@@ -296,7 +308,7 @@
     <div class="modal__content">
       <button type="button" class="modal__close" data-close-modal aria-label="关闭">&times;</button>
       <h3 class="modal__title">扫码添加微信</h3>
-      <img class="modal__qr" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Zinong2017" alt="微信二维码" width="200" height="200">
+      <img class="modal__qr" src="assets/img/wechat-qr.png" alt="微信二维码" width="200" height="200" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23F7FAFC%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22 fill=%22%23718096%22 font-size=%2214%22%3E%E6%9B%BF%E6%8D%A2%E4%BA%8C%E7%BB%B4%E7%A0%81%3C/text%3E%3C/svg%3E'">
       <p class="modal__hint">扫码备注「Agent 产品」更易通过</p>
     </div>
   </div>

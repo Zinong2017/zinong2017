@@ -3,6 +3,16 @@
 
   document.documentElement.classList.add('js-ready');
 
+  function toggleClass(el, className, force) {
+    if (!el) return;
+    if (typeof force === 'boolean') {
+      if (force) el.classList.add(className);
+      else el.classList.remove(className);
+    } else {
+      el.classList.toggle(className);
+    }
+  }
+
   var NAV_SCROLL_THRESHOLD = 100;
   var CAROUSEL_INTERVAL = 5000;
   var NAV_HEIGHT = 68;
@@ -51,7 +61,7 @@
     function setActiveNav(id) {
       navLinks.forEach(function (link) {
         var href = link.getAttribute('href');
-        link.classList.toggle('active', href === '#' + id);
+        toggleClass(link, 'active', href === '#' + id);
       });
     }
 
@@ -111,8 +121,9 @@
     if (!hamburgerBtn || !mobileNav) return;
 
     hamburgerBtn.addEventListener('click', function () {
-      var isOpen = mobileNav.classList.toggle('open');
-      hamburgerBtn.classList.toggle('open', isOpen);
+      var isOpen = !mobileNav.classList.contains('open');
+      toggleClass(mobileNav, 'open', isOpen);
+      toggleClass(hamburgerBtn, 'open', isOpen);
       hamburgerBtn.setAttribute('aria-expanded', String(isOpen));
       mobileNav.setAttribute('aria-hidden', String(!isOpen));
       document.body.style.overflow = isOpen ? 'hidden' : '';
@@ -156,10 +167,10 @@
     function goToSlide(index) {
       currentIndex = (index + slides.length) % slides.length;
       for (var i = 0; i < slides.length; i++) {
-        slides[i].classList.toggle('active', i === currentIndex);
+        toggleClass(slides[i], 'active', i === currentIndex);
       }
       for (var j = 0; j < dots.length; j++) {
-        dots[j].classList.toggle('active', j === currentIndex);
+        toggleClass(dots[j], 'active', j === currentIndex);
       }
       lazyLoadSlide(slides[currentIndex]);
       var next = slides[(currentIndex + 1) % slides.length];
