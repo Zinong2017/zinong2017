@@ -1,997 +1,354 @@
-(function () {
-  'use strict';
-  document.documentElement.classList.add('js-ready');
+(function(){
+'use strict';
 
-  /* ==============================================
-     工具函数
-     ============================================== */
-  function $(id) { return document.getElementById(id); }
+/* ====== 工具 ====== */
+function $(id){return document.getElementById(id)}
+function esc(s){var d=document.createElement('div');d.appendChild(document.createTextNode(s));return d.innerHTML}
 
-  function escapeHtml(str) {
-    var div = document.createElement('div');
-    div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
+/* ====== PM Agent 核心 ====== */
+var DEEPSEEK_URL='https://api.deepseek.com/v1/chat/completions';
+var DEEPSEEK_KEY='sk-6c4da4b366a840cd9168f1bbbed21f43';
+
+var state={
+  messages:[],isStreaming:false,abortController:null,
+  currentBubble:null,activeSkill:null,workflow:null,
+  conversations:{},activeConvId:null
+};
+
+/* ====== DOM 引用 ====== */
+var chatList=$('chatList'),chatInput=$('chatInput'),chatSend=$('chatSend');
+var welcome=$('welcome'),thinkingBar=$('thinkingBar'),thinkingBody=$('thinkingBody'),thinkingToggle=$('thinkingToggle');
+var cmdPopup=$('cmdPopup'),cmdPopupList=$('cmdPopupList');
+var sidebar=$('sidebar'),sidebarSkills=$('sidebarSkills'),sidebarSearch=$('sidebarSearch');
+var sidebarHistoryList=$('sidebarHistoryList'),sidebarNewChat=$('sidebarNewChat');
+var mainMenuBtn=$('mainMenuBtn');
+var inputTags=document.querySelectorAll('.input-tag');
+var welcomeCards=document.querySelectorAll('.welcome-card');
+
+/* ====== 对话管理 ====== */
+function newConversation(){
+  state.activeConvId='conv_'+Date.now();
+  state.messages=[];
+  state.activeSkill=null;state.workflow=null;
+  chatList.innerHTML='';
+  welcome.hidden=false;
+  updateHistoryList();
+  saveConversations();
+}
+function switchConversation(id){
+  if(!state.conversations[id])return;
+  saveCurrentConversation();
+  state.activeConvId=id;
+  state.messages=state.conversations[id].messages||[];
+  state.activeSkill=null;state.workflow=null;
+  renderConversation();
+  updateHistoryList();
+}
+function saveCurrentConversation(){
+  if(!state.activeConvId||!state.messages.length)return;
+  var title=state.messages[0]?state.messages[0].content.slice(0,30):'新对话';
+  state.conversations[state.activeConvId]={title:title,messages:state.messages.slice(-40),time:Date.now()};
+  saveConversations();
+}
+function saveConversations(){
+  try{localStorage.setItem('pm_conversations',JSON.stringify(state.conversations))}catch(e){}
+}
+function loadConversations(){
+  try{var raw=localStorage.getItem('pm_conversations');if(raw)state.conversations=JSON.parse(raw)}catch(e){}
+}
+function renderConversation(){
+  chatList.innerHTML='';
+  welcome.hidden=true;
+  state.messages.forEach(function(m,i){
+    if(i===0&&m.role==='assistant')return;
+    appendMsg(m.role,m.content,false);
+  });
+  scrollBottom();
+}
+function updateHistoryList(){
+  if(!sidebarHistoryList)return;
+  sidebarHistoryList.innerHTML='';
+  var convs=Object.entries(state.conversations).sort(function(a,b){return b[1].time-a[1].time});
+  if(state.activeConvId&&!state.conversations[state.activeConvId]&&state.messages.length){
+    convs.unshift([state.activeConvId,{title:state.messages[0]?state.messages[0].content.slice(0,30):'当前对话',time:Date.now()}]);
   }
+  convs.slice(0,20).forEach(function(e){
+    var btn=document.createElement('button');
+    btn.className='sidebar__history-item'+(e[0]===state.activeConvId?' sidebar__history-item--active':'');
+    btn.textContent=e[1].title||'空对话';
+    btn.addEventListener('click',function(){switchConversation(e[0])});
+    sidebarHistoryList.appendChild(btn);
+  });
+}
 
-  /* ==============================================
-     粒子背景
-     ============================================== */
-  function initParticles() {
-    var canvas = $('particleCanvas');
-    if (!canvas) return;
-    var ctx = canvas.getContext('2d');
-    var particles = [];
-    var maxParticles = 60;
-    var w, h;
-
-    function resize() {
-      w = canvas.width = window.innerWidth;
-      h = canvas.height = window.innerHeight;
-    }
-    resize();
-    window.addEventListener('resize', resize);
-
-    // 创建粒子
-    for (var i = 0; i < maxParticles; i++) {
-      particles.push({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        r: Math.random() * 1.5 + 0.5,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        opacity: Math.random() * 0.5 + 0.1
-      });
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, w, h);
-
-      // 连线
-      for (var i = 0; i < particles.length; i++) {
-        var p = particles[i];
-        // 绘制粒子
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(99, 102, 241, ' + p.opacity + ')';
-        ctx.fill();
-
-        // 连线到附近的粒子
-        for (var j = i + 1; j < particles.length; j++) {
-          var p2 = particles[j];
-          var dx = p.x - p2.x;
-          var dy = p.y - p2.y;
-          var dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = 'rgba(99, 102, 241, ' + (0.08 * (1 - dist / 120)) + ')';
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
-        }
-
-        // 移动
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0) p.x = w;
-        if (p.x > w) p.x = 0;
-        if (p.y < 0) p.y = h;
-        if (p.y > h) p.y = 0;
-      }
-
-      requestAnimationFrame(draw);
-    }
-    draw();
+/* ====== Markdown ====== */
+function md2html(md){
+  if(!md)return'';
+  if(typeof marked!=='undefined'&&marked.parse){
+    marked.setOptions({gfm:true,breaks:true,headerIds:false,mangle:false});
+    return marked.parse(md).replace(/<a /g,'<a target="_blank" rel="noopener noreferrer" ');
   }
+  return md.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n\n/g,'<br><br>');
+}
 
-  /* ==============================================
-     PM Agent 核心
-     ============================================== */
-  function initPmAgent() {
-    var DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
-    var DEEPSEEK_API_KEY = 'sk-6c4da4b366a840cd9168f1bbbed21f43';
+/* ====== System Prompt ====== */
+function getSysPrompt(){
+  return '你是 Zinong2017，一名资深的 AI Agent 产品经理。你既是 PM 数字员工也是产品导师。\n\n'+
+    '## 你的能力\n根据用户输入自行判断他需要什么：答疑解惑、文档产出、方案辅导。\n\n'+
+    '### 知识问答 → 导师模式\n- 结构化讲解：概念 → 案例 → 实操建议\n- 引导用户思考更深层问题\n\n'+
+    '### 文档产出 → 助手模式\n- PRD：背景→用户故事→功能需求(P0/P1/P2)→指标体系→排期风险\n- 竞品分析：功能/体验/定位/商业模式四维对比\n- 需求拆解：用户故事+功能点+优先级(MoSCoW)+依赖\n- 指标设计：北极星+过程+质量三层\n- 策略画布/SWOT/商业模式等\n\n'+
+    '## 输出格式\n- Markdown 组织，标题层级分明，善用表格和列表\n- 中文为主，术语保留英文\n- 每个结论附带可操作建议\n\n'+
+    '## 边界\n只回答产品/设计/Agent 问题；不确定时坦诚说明';
+}
 
-    // DOM
-    var heroWrapper = $('heroInputWrapper');
-    var heroInput = $('heroInput');
-    var heroSubmit = $('heroSubmit');
-    var heroTags = document.querySelectorAll('.hero__tag');
-    var workspace = $('workspace');
-    var workspaceBody = $('workspaceBody');
-    var workspaceInput = $('workspaceInput');
-    var workspaceSend = $('workspaceSend');
-    var workspaceBack = $('workspaceBack');
-    var workspaceNew = $('workspaceNew');
-    var workspaceThinking = $('workspaceThinking');
-    var workspaceThinkingBody = $('workspaceThinkingBody');
-    var workspaceThinkingToggle = $('workspaceThinkingToggle');
-    var workspaceTyping = $('workspaceTyping');
-    var workspaceSidebar = $('workspaceSidebar');
-    var sidebarNav = $('sidebarNav');
-    var sidebarSearch = $('sidebarSearch');
-    var cmdPopup = $('cmdPopup');
-    var cmdPopupList = $('cmdPopupList');
+/* ====== API 调用 ====== */
+async function callAPI(messages){
+  var ctrl=new AbortController();state.abortController=ctrl;
+  return fetch(DEEPSEEK_URL,{method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+DEEPSEEK_KEY},
+    body:JSON.stringify({model:'deepseek-chat',messages:messages,stream:true,temperature:0.7,max_tokens:4096}),
+    signal:ctrl.signal});
+}
 
-    if (!heroInput || !workspace) return;
-
-    // 状态
-    var state = {
-      messages: [],
-      isStreaming: false,
-      abortController: null,
-      currentBubble: null,
-      activeSkill: null,      // 当前激活的技能 { domain, key, prompt }
-      workflow: null           // 当前工作流 { name, steps[], currentStep, domain }
-    };
-
-    // ===== Markdown 渲染 =====
-    function markdownToHtml(md) {
-      if (!md) return '';
-      if (typeof marked !== 'undefined' && marked.parse) {
-        marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
-        return marked.parse(md).replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ');
-      }
-      return md.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-               .replace(/\n\n/g, '<br><br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    }
-
-    // ===== 系统提示词：AI PM Agent 智能体 =====
-    function getSystemPrompt() {
-      return '你是 Zinong2017 的 AI 数字分身，一名资深的 AI Agent 产品经理。你既是 PM 助手也是产品导师。\n\n' +
-        '## 你的角色定位\n' +
-        '你是 Zinong2017 本人（AI Agent 产品经理，产品设计专业背景）的 AI 分身。你在与访客对话，代表他的专业能力和产品理念。\n\n' +
-        '## 你的核心能力（自行判断用户需要什么）\n' +
-        '根据用户输入，你自行判断他/她需要的是：知识解答、还是文档产出、还是方案辅导。\n\n' +
-        '### 当用户问知识/方法论问题时 → 你是导师\n' +
-        '- 结构化讲解：概念 → 案例 → 实操建议\n' +
-        '- 用具体场景说明（如"假设你在设计一个客服 Agent"）\n' +
-        '- 引导用户思考更深层的问题\n' +
-        '- 如果问题模糊，先追问澄清再回答\n\n' +
-        '### 当用户要求产出文档时 → 你是 PM 助手\n' +
-        '调用以下 PM 专业技能，输出专业文档：\n\n' +
-        '1. **PRD 撰写**：背景与目标 → 用户故事(含场景) → 功能需求(P0/P1/P2 优先级) → 非功能需求 → 指标体系(北极星+过程+质量) → 排期与风险\n' +
-        '2. **竞品分析**：功能、体验、定位、商业模式四维度对比 → 差异化建议 → 行动项\n' +
-        '3. **需求拆解**：用户故事 → 功能点 → 优先级(MoSCoW) → 依赖关系\n' +
-        '4. **产品方案评审**：可行性/风险/体验三角度 → 风险矩阵 → 改进建议\n' +
-        '5. **指标设计**：北极星指标 + 过程指标 + 质量指标 → 衡量方式与目标值\n' +
-        '6. **用户访谈设计**：结构化提纲 + 追问策略 + 场景脚本\n' +
-        '7. **产品策略建议**：市场定位 → 竞争策略 → MVP 拆解 → 路线图\n' +
-        '8. **产品分析报告**：现状诊断 → 数据解读 → 改善方案 → 预期效果\n\n' +
-        '## 输出格式（你自己决定用哪种）\n' +
-        '- **知识问答**：结构化文字 + 案例 + 总结\n' +
-        '- **文档产出**：Markdown 格式，标题层级分明，含表格、列表\n' +
-        '- 文档需包含：标题 → 版本/日期 → 正文 → 附录/参考资料\n' +
-        '- 语言：中文为主，专业术语保留英文（PRD、MVP、ROI、SOP）\n' +
-        '- 每个结论附带可操作的具体建议\n\n' +
-        '## 风格要求\n' +
-        '- 专业但不装腔：用产品经理的术语但保持易懂\n' +
-        '- 实例驱动：用具体场景展开论述\n' +
-        '- 克制谦逊：承认复杂性和不确定性，不做绝对断言\n' +
-        '- 主动引导：发现用户需求不清晰时，先追问再回答\n\n' +
-        '## 边界\n' +
-        '- 只回答产品/设计/Agent/职场相关问题\n' +
-        '- 被问无关话题时，礼貌引导回 PM/Agent 方向\n' +
-        '- 不生成可执行代码，但可描述技术方案\n' +
-        '- 不确定时坦诚说"我目前没有足够案例来回答，但我们可以一起探讨"';
-    }
-
-    // ===== API 调用 =====
-    async function callDeepSeekAPI(messages) {
-      var controller = new AbortController();
-      state.abortController = controller;
-      var body = JSON.stringify({ model: 'deepseek-chat', messages: messages, stream: true, temperature: 0.7, max_tokens: 4096 });
-      return fetch(DEEPSEEK_API_URL, { method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + DEEPSEEK_API_KEY },
-        body: body, signal: controller.signal });
-    }
-
-    // ===== SSE 流解析 =====
-    async function handleStream(response, bubbleEl) {
-      var reader = response.body.getReader();
-      var decoder = new TextDecoder();
-      var fullContent = '';
-      var buffer = '';
-      try {
-        while (true) {
-          var result = await reader.read();
-          if (result.done) break;
-          buffer += decoder.decode(result.value, { stream: true });
-          var lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-          for (var i = 0; i < lines.length; i++) {
-            var line = lines[i].trim();
-            if (!line || line.indexOf('data:') !== 0) continue;
-            var data = line.slice(5).trim();
-            if (data === '[DONE]') break;
-            try {
-              var delta = JSON.parse(data).choices[0].delta;
-              if (delta && delta.content) {
-                fullContent += delta.content;
-                appendStreamText(bubbleEl, delta.content);
-              }
-            } catch (e) {}
-          }
-        }
-      } catch (err) {
-        if (err.name !== 'AbortError') throw err;
-      }
-      return fullContent;
-    }
-
-    var cursorSpan = null;
-    function appendStreamText(bubbleEl, text) {
-      if (!bubbleEl) return;
-      if (cursorSpan && cursorSpan.parentNode) cursorSpan.parentNode.removeChild(cursorSpan);
-      var raw = (bubbleEl.getAttribute('data-raw') || '') + text;
-      bubbleEl.setAttribute('data-raw', raw);
-      bubbleEl.innerHTML = markdownToHtml(raw);
-      cursorSpan = document.createElement('span');
-      cursorSpan.className = 'typing-cursor';
-      bubbleEl.appendChild(cursorSpan);
-      workspaceBody.scrollTop = workspaceBody.scrollHeight;
-    }
-
-    function removeCursor(bubbleEl) {
-      if (cursorSpan && cursorSpan.parentNode) cursorSpan.parentNode.removeChild(cursorSpan);
-      if (bubbleEl) bubbleEl.innerHTML = markdownToHtml(bubbleEl.getAttribute('data-raw') || '');
-    }
-
-    // ===== 打字指示器 =====
-    function showTyping() {
-      workspaceTyping.hidden = false;
-      workspaceSend.classList.add('workspace__send--stop');
-      workspaceSend.querySelector('.workspace__send-icon').hidden = true;
-      workspaceSend.querySelector('.workspace__stop-icon').hidden = false;
-    }
-    function hideTyping() {
-      workspaceTyping.hidden = true;
-      workspaceSend.classList.remove('workspace__send--stop');
-      workspaceSend.querySelector('.workspace__send-icon').hidden = false;
-      workspaceSend.querySelector('.workspace__stop-icon').hidden = true;
-    }
-
-    // ===== 思考过程 =====
-    var THINKING_STEPS = [
-      { icon: '🔍', text: '理解需求：识别产品维度和场景上下文...' },
-      { icon: '🗂', text: '检索知识库：匹配 PM 方法论和最佳实践...' },
-      { icon: '📋', text: '构建分析框架：场景-能力-体验-指标...' },
-      { icon: '✏️', text: '生成文档：按专业 PM 格式组织输出...' },
-      { icon: '✅', text: '检查完整性：确认覆盖关键章节...' }
-    ];
-
-    function playThinking() {
-      workspaceThinking.hidden = false;
-      workspaceThinkingBody.innerHTML = '';
-      workspaceThinking.classList.remove('workspace__thinking--open');
-      if (workspaceThinkingToggle) workspaceThinkingToggle.setAttribute('aria-expanded', 'false');
-      THINKING_STEPS.forEach(function (s, i) {
-        setTimeout(function () {
-          var step = document.createElement('div');
-          step.className = 'workspace__thinking-step';
-          step.innerHTML = '<span>' + s.icon + '</span> <span>' + escapeHtml(s.text) + '</span>';
-          workspaceThinkingBody.appendChild(step);
-          workspaceThinking.classList.add('workspace__thinking--open');
-          if (workspaceThinkingToggle) workspaceThinkingToggle.setAttribute('aria-expanded', 'true');
-        }, i * 350 + 150);
-      });
-    }
-
-    function hideThinking() { setTimeout(function () { workspaceThinking.hidden = true; }, 2000); }
-
-    // ===== 添加消息到 DOM =====
-    function addMsg(role, content, animate) {
-      var el = document.createElement('div');
-      el.className = 'chat-msg chat-msg--' + role;
-      if (animate === false) el.style.animation = 'none';
-      var avatar = role === 'user' ? '我' : 'Z';
-      el.innerHTML = '<div class="chat-msg__avatar">' + avatar + '</div>' +
-        '<div class="chat-msg__bubble">' + markdownToHtml(content) + '</div>';
-      workspaceBody.appendChild(el);
-      workspaceBody.scrollTop = workspaceBody.scrollHeight;
-      return el;
-    }
-
-    // ===== 仅复制按钮（导师模式） =====
-    function addCopyOnlyAction(bubbleEl, content) {
-      var actions = document.createElement('div');
-      actions.className = 'chat-msg__actions';
-      actions.innerHTML = '<button class="chat-msg__action chat-msg__action--copy">📋 复制对话</button>';
-      bubbleEl.parentNode.appendChild(actions);
-      actions.querySelector('.chat-msg__action--copy').addEventListener('click', function () { copyText(content); });
-    }
-
-    // ===== 全格式操作按钮（每次回复都显示） =====
-    function addAllFormatActions(bubbleEl, content) {
-      var actions = document.createElement('div');
-      actions.className = 'chat-msg__actions';
-      actions.innerHTML =
-        '<button class="chat-msg__action chat-msg__action--word">📄 下载 Word</button>' +
-        '<button class="chat-msg__action chat-msg__action--ppt">📊 下载 PPT</button>' +
-        '<button class="chat-msg__action chat-msg__action--dashboard">📈 打开仪表盘</button>' +
-        '<button class="chat-msg__action chat-msg__action--copy">📋 复制全文</button>';
-
-      bubbleEl.parentNode.appendChild(actions);
-      actions.querySelector('.chat-msg__action--word').addEventListener('click', function () { downloadWord(content); });
-      actions.querySelector('.chat-msg__action--ppt').addEventListener('click', function () { downloadPPT(content); });
-      actions.querySelector('.chat-msg__action--dashboard').addEventListener('click', function () { openDashboard(content); });
-      actions.querySelector('.chat-msg__action--copy').addEventListener('click', function () { copyText(content); });
-    }
-
-    // ===== PPT 下载 =====
-    function downloadPPT(md) {
-      var bodyHtml = markdownToHtml(md);
-      // 将 ## 标题转为幻灯片分隔
-      var slides = bodyHtml.split(/<h2>(.*?)<\/h2>/);
-      var pptHtml = '';
-      var slideNum = 0;
-
-      // 封面
-      pptHtml += '<div class="slide slide--cover"><div class="slide__content"><h1>📊 演示文稿</h1><p style="color:#94A3B8">Zinong2017 PM 助手生成</p></div></div>';
-
-      for (var i = 0; i < slides.length; i++) {
-        var part = slides[i].trim();
-        if (!part) continue;
-        // 奇数索引是标题
-        if (i % 2 === 1) {
-          slideNum++;
-          var title = part;
-          var body = (slides[i + 1] || '').trim();
-          pptHtml += '<div class="slide"><div class="slide__content"><h2>' + title + '</h2>' + body + '</div></div>';
-          i++; // 跳过下一个（body）
-        }
-      }
-
-      var now = new Date();
-      var ds = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-      var html = '<html><head><meta charset="utf-8"><style>' +
-        '@page{size:screen;margin:0}body{font-family:"Microsoft YaHei",sans-serif;background:#0F172A;color:#E2E8F0;margin:0}' +
-        '.slide{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;padding:60px;box-sizing:border-box;page-break-after:always;border-bottom:1px solid #1E293B}' +
-        '.slide--cover{background:linear-gradient(135deg,#1E293B 0%,#312E81 50%,#1E293B 100%)}' +
-        '.slide__content{max-width:800px;width:100%}' +
-        'h1{font-size:48px;color:#F8FAFC;margin-bottom:16px}' +
-        'h2{font-size:32px;color:#818CF8;margin-bottom:24px;border-bottom:2px solid #6366F1;padding-bottom:12px}' +
-        'h3{font-size:22px;color:#A5B4FC;margin:16px 0 8px}' +
-        'p,li{font-size:20px;line-height:1.8;color:#CBD5E1}' +
-        'ul,ol{padding-left:28px}' +
-        'table{width:100%;border-collapse:collapse;margin:16px 0;font-size:18px}' +
-        'th,td{border:1px solid #334155;padding:12px 16px;text-align:left}' +
-        'th{background:#1E293B;color:#818CF8}' +
-        'blockquote{border-left:4px solid #6366F1;padding:12px 20px;background:#1E293B;margin:16px 0}' +
-        'code{background:#1E293B;padding:2px 8px;border-radius:4px}pre{background:#0F172A;padding:16px;border-radius:8px}' +
-        '</style></head><body>' + pptHtml +
-        '<div class="slide slide--cover"><div class="slide__content"><h2>感谢阅读</h2><p>生成自 Zinong2017 PM 助手 | ' + ds + '</p></div></div>' +
-        '</body></html>';
-
-      var blob = new Blob(['﻿' + html], { type: 'application/msword;charset=utf-8' });
-      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'PM演示_' + ds + '.ppt';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
-    }
-
-    // ===== 仪表盘（新窗口打开） =====
-    function openDashboard(md) {
-      var bodyHtml = markdownToHtml(md);
-      var now = new Date();
-      var ds = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-
-      // 提取表格数据用于图表
-      var html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-        '<title>PM 数据仪表盘</title>' +
-        '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>' +
-        '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Inter","Noto Sans SC",sans-serif;background:#0F172A;color:#E2E8F0;padding:24px}' +
-        '.dash-header{text-align:center;margin-bottom:32px;padding:24px;background:linear-gradient(135deg,#1E293B,#312E81);border-radius:16px}' +
-        '.dash-header h1{font-size:28px;color:#F8FAFC;margin-bottom:8px}' +
-        '.dash-header p{color:#94A3B8}' +
-        '.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}' +
-        '.kpi-card{background:#1E293B;border:1px solid #334155;border-radius:12px;padding:20px;text-align:center}' +
-        '.kpi-card__value{font-size:36px;font-weight:800;color:#818CF8;margin-bottom:4px}' +
-        '.kpi-card__label{font-size:14px;color:#94A3B8}' +
-        '.chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px;margin-bottom:24px}' +
-        '.chart-box{background:#1E293B;border:1px solid #334155;border-radius:12px;padding:20px}' +
-        '.chart-box h3{color:#A5B4FC;margin-bottom:12px}' +
-        '.chart-box canvas{max-height:300px}' +
-        '.content-section{background:#1E293B;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:16px}' +
-        '.content-section h2{color:#818CF8;margin-bottom:16px;border-bottom:2px solid #6366F1;padding-bottom:8px}' +
-        '.content-section table{width:100%;border-collapse:collapse}' +
-        '.content-section th,.content-section td{border:1px solid #334155;padding:10px 14px;text-align:left}' +
-        '.content-section th{background:#0F172A;color:#818CF8}' +
-        '.dash-footer{text-align:center;color:#64748B;font-size:14px;margin-top:32px;padding-top:16px;border-top:1px solid #1E293B}' +
-        '@media(max-width:768px){.chart-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}' +
-        '</style></head><body>' +
-        '<div class="dash-header"><h1>📈 PM 数据仪表盘</h1><p>生成自 Zinong2017 PM 助手 | ' + ds + '</p></div>' +
-        '<div class="content-section">' + bodyHtml + '</div>' +
-        '<div class="dash-footer">Zinong2017 AI 分身 · 数据仅供参考</div>' +
-        // 动态初始化图表
-        '<script>document.querySelectorAll("table").forEach(function(t,i){if(i>2)return;var h=[];t.querySelectorAll("th").forEach(function(th){h.push(th.textContent)});' +
-        'var rows=[];t.querySelectorAll("tbody tr,tbody").length||t.querySelectorAll("tr").forEach(function(tr,i){if(i===0)return;var r=[];tr.querySelectorAll("td").forEach(function(td){r.push(td.textContent)});if(r.length)rows.push(r)});' +
-        'if(rows.length&&h.length){var box=document.createElement("div");box.className="chart-box";box.innerHTML="<h3>📊 数据趋势</h3><canvas id=\\"chart"+i+"\\"></canvas>";' +
-        't.parentNode.insertBefore(box,t);new Chart(document.getElementById("chart"+i),{type:"bar",data:{labels:rows.map(function(r){return r[0]}),' +
-        'datasets:[{label:h[1]||"数值",data:rows.map(function(r){return parseFloat(r[1])||0}),backgroundColor:"#818CF8",borderRadius:6}]},' +
-        'options:{responsive:true,plugins:{legend:{labels:{color:"#94A3B8"}}}}});}' +
-        '});<\/script></body></html>';
-
-      var blob = new Blob(['﻿' + html], { type: 'text/html;charset=utf-8' });
-      var url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-    }
-
-    // ===== 原 Word 下载 =====
-
-    // ===== Word 下载 =====
-    function downloadWord(md) {
-      var bodyHtml = markdownToHtml(md);
-      var now = new Date();
-      var ds = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-      var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
-        '<head><meta charset="utf-8"><style>@page{size:A4;margin:2cm}body{font-family:"Microsoft YaHei",sans-serif;font-size:12pt;line-height:1.8;color:#333}' +
-        'h1{font-size:18pt;color:#1E293B;border-bottom:2px solid #3B82F6;padding-bottom:8px}h2{font-size:15pt;color:#1E293B}h3{font-size:13pt;color:#3B82F6}' +
-        'table{border-collapse:collapse;width:100%;margin:12px 0}th,td{border:1px solid #E2E8F0;padding:8px}th{background:#F1F5F9}' +
-        'code{background:#F1F5F9;padding:2px 6px;border-radius:4px}pre{background:#1E293B;color:#FFF;padding:12px;border-radius:6px;overflow-x:auto}' +
-        'blockquote{border-left:4px solid #3B82F6;padding:8px 16px;background:#F8FAFC}</style></head><body>' +
-        '<p style="color:#94A3B8;font-size:10pt">生成自 Zinong2017 PM 助手 | ' + ds + '</p>' + bodyHtml +
-        '<hr><p style="color:#94A3B8;font-size:10pt">© ' + now.getFullYear() + ' Zinong2017</p></body></html>';
-      var blob = new Blob(['﻿' + html], { type: 'application/msword;charset=utf-8' });
-      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'PM文档_' + ds + '.doc';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
-    }
-
-    // ===== 复制 =====
-    function copyText(text) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function () { showToast('已复制到剪贴板'); });
-      } else {
-        var ta = document.createElement('textarea'); ta.value = text;
-        ta.style.cssText = 'position:fixed;left:-9999px';
-        document.body.appendChild(ta); ta.select();
-        try { document.execCommand('copy'); showToast('已复制到剪贴板'); } catch (e) { showToast('复制失败'); }
-        document.body.removeChild(ta);
+/* ====== SSE 流解析 ====== */
+async function handleStream(resp,bubble){
+  var reader=resp.body.getReader(),decoder=new TextDecoder(),full='',buf='';
+  try{
+    while(true){
+      var r=await reader.read();if(r.done)break;
+      buf+=decoder.decode(r.value,{stream:true});
+      var lines=buf.split('\n');buf=lines.pop()||'';
+      for(var i=0;i<lines.length;i++){
+        var line=lines[i].trim();
+        if(!line||line.indexOf('data:')!==0)continue;
+        var data=line.slice(5).trim();if(data==='[DONE]')break;
+        try{var d=JSON.parse(data).choices[0].delta;if(d&&d.content){full+=d.content;streamAppend(bubble,d.content)}}
+        catch(e){}
       }
     }
+  }catch(e){if(e.name!=='AbortError')throw e}
+  return full;
+}
 
-    var toastTimer;
-    function showToast(msg) {
-      var t = document.getElementById('pmToast');
-      if (!t) { t = document.createElement('div'); t.id = 'pmToast';
-        t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1E293B;color:#FFF;padding:10px 24px;border-radius:999px;font-size:14px;z-index:9999;pointer-events:none;transition:opacity 0.3s';
-        document.body.appendChild(t); }
-      t.textContent = msg; t.style.opacity = '1';
-      if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(function () { t.style.opacity = '0'; }, 2000);
-    }
+var cursor=null;
+function streamAppend(bubble,text){
+  if(!bubble)return;
+  if(cursor&&cursor.parentNode)cursor.remove();
+  var raw=(bubble.getAttribute('data-raw')||'')+text;
+  bubble.setAttribute('data-raw',raw);
+  bubble.innerHTML=md2html(raw);
+  cursor=document.createElement('span');cursor.className='typing-cursor';bubble.appendChild(cursor);
+  scrollBottom();
+}
+function removeCursor(bubble){
+  if(cursor&&cursor.parentNode)cursor.remove();
+  if(bubble)bubble.innerHTML=md2html(bubble.getAttribute('data-raw')||'');
+}
 
-    // ===== 发送消息 =====
-    async function sendMessage(text) {
-      if (!text || !text.trim() || state.isStreaming) return;
-      text = text.trim();
-      state.isStreaming = true;
+/* ====== 打字指示器 ====== */
+function showTyping(){
+  chatSend.classList.add('input-area__send--stop');
+  chatSend.querySelector('.input-area__send-icon').hidden=true;
+  chatSend.querySelector('.input-area__stop-icon').hidden=false;
+}
+function hideTyping(){
+  chatSend.classList.remove('input-area__send--stop');
+  chatSend.querySelector('.input-area__send-icon').hidden=false;
+  chatSend.querySelector('.input-area__stop-icon').hidden=true;
+}
 
-      // 添加用户消息
-      state.messages.push({ role: 'user', content: text });
-      addMsg('user', text, true);
+/* ====== 思考过程 ====== */
+var THINK_STEPS=[
+  ['🔍','理解需求：识别用户关注的产品维度...'],
+  ['🗂','检索知识库：匹配 PM 方法论...'],
+  ['📋','构建框架：组织分析结构...'],
+  ['✏️','生成内容：按专业格式输出...'],
+  ['✅','检查完整性：确认关键要点...']
+];
+function playThinking(){
+  thinkingBar.hidden=false;thinkingBody.innerHTML='';
+  thinkingBar.classList.remove('thinking-bar--open');
+  if(thinkingToggle)thinkingToggle.setAttribute('aria-expanded','false');
+  THINK_STEPS.forEach(function(s,i){
+    setTimeout(function(){
+      var step=document.createElement('div');step.className='thinking-step';
+      step.innerHTML='<span>'+s[0]+'</span><span>'+esc(s[1])+'</span>';
+      thinkingBody.appendChild(step);
+      thinkingBar.classList.add('thinking-bar--open');
+      if(thinkingToggle)thinkingToggle.setAttribute('aria-expanded','true');
+    },i*350+150);
+  });
+}
+function hideThinking(){setTimeout(function(){thinkingBar.hidden=true},2000)}
 
-      // 思考动画
-      playThinking();
+/* ====== 消息 ====== */
+function appendMsg(role,content,animate){
+  if(role==='assistant'&&welcome&&!welcome.hidden){welcome.hidden=true}
+  var el=document.createElement('div');
+  el.className='chat-msg chat-msg--'+role;
+  if(animate===false)el.style.animation='none';
+  var avatar=role==='user'?'我':'Z';
+  el.innerHTML='<div class="chat-msg__avatar">'+avatar+'</div><div class="chat-msg__bubble">'+md2html(content)+'</div>';
+  chatList.appendChild(el);scrollBottom();return el;
+}
 
-      // 构建动态 System Prompt
-      var basePrompt = getSystemPrompt();
-      var skillContext = '';
-      if (state.activeSkill) {
-        var s = state.activeSkill;
-        // 检查是否为交互式/导师模式技能
-        var isInteractive = false;
-        var activeDomain = PM_SKILLS[s.domain];
-        if (activeDomain && activeDomain.skills[s.key]) {
-          isInteractive = activeDomain.skills[s.key].interactive;
-        }
-        if (isInteractive) {
-          skillContext = '\n\n## 当前模式：🎓 导师引导\n' +
-            '你正在以导师身份引导用户。请遵循以下规则：\n' +
-            '- 每次只问一个问题或引导一个步骤，等用户回答后再继续\n' +
-            '- 用鼓励、建设性的语气\n' +
-            '- 根据用户回答的质量决定是深入追问还是进入下一步\n' +
-            '- 最后给出结构化总结\n' +
-            '- 如果用户卡住了，提供提示或示例';
-        } else {
-          skillContext = '\n\n## 当前激活的 PM 技能\n' +
-            '用户正在使用 [' + s.key + '] 技能。请按照该技能的专业方法论和模板来组织输出。' +
-            '但这不限制你结合其他 PM 知识来丰富回答。';
-        }
-      }
-      var systemMsg = { role: 'system', content: basePrompt + skillContext };
-      var apiMessages = [systemMsg].concat(state.messages.slice(-22));
+function addAllActions(bubble,content){
+  var isMentor=state.activeSkill&&PM_SKILLS[state.activeSkill.domain]&&PM_SKILLS[state.activeSkill.domain].skills[state.activeSkill.key]&&PM_SKILLS[state.activeSkill.domain].skills[state.activeSkill.key].interactive;
+  var a=document.createElement('div');a.className='chat-msg__actions';
+  if(isMentor){a.innerHTML='<button class="chat-msg__action chat-msg__action--copy">📋 复制对话</button>'}
+  else{a.innerHTML='<button class="chat-msg__action chat-msg__action--word">📄 Word</button><button class="chat-msg__action chat-msg__action--ppt">📊 PPT</button><button class="chat-msg__action chat-msg__action--dashboard">📈 仪表盘</button><button class="chat-msg__action chat-msg__action--copy">📋 复制</button>'}
+  bubble.parentNode.appendChild(a);
+  a.querySelector('.chat-msg__action--word')&&a.querySelector('.chat-msg__action--word').addEventListener('click',function(){downloadWord(content)});
+  a.querySelector('.chat-msg__action--ppt')&&a.querySelector('.chat-msg__action--ppt').addEventListener('click',function(){downloadPPT(content)});
+  a.querySelector('.chat-msg__action--dashboard')&&a.querySelector('.chat-msg__action--dashboard').addEventListener('click',function(){openDashboard(content)});
+  a.querySelector('.chat-msg__action--copy').addEventListener('click',function(){copyText(content)});
+}
 
-      setTimeout(function () { hideThinking(); showTyping(); }, THINKING_STEPS.length * 350 + 400);
+/* ====== 发送消息 ====== */
+async function sendMessage(text){
+  if(!text||!text.trim()||state.isStreaming)return;
+  text=text.trim();state.isStreaming=true;
+  if(!state.activeConvId)state.activeConvId='conv_'+Date.now();
 
-      var msgEl = document.createElement('div');
-      msgEl.className = 'chat-msg chat-msg--assistant';
-      msgEl.innerHTML = '<div class="chat-msg__avatar">Z</div><div class="chat-msg__bubble" data-raw=""></div>';
-      workspaceBody.appendChild(msgEl);
-      var bubbleEl = msgEl.querySelector('.chat-msg__bubble');
-      state.currentBubble = bubbleEl;
+  state.messages.push({role:'user',content:text});
+  appendMsg('user',text,true);
+  playThinking();
 
-      try {
-        var resp = await callDeepSeekAPI(apiMessages);
-        if (!resp.ok) throw new Error('API 错误: ' + resp.status);
-        hideTyping();
-        var content = await handleStream(resp, bubbleEl);
-        removeCursor(bubbleEl);
-        if (content) {
-          state.messages.push({ role: 'assistant', content: content });
-          // 导师模式只显示复制按钮，普通模式显示全部下载选项
-          var isMentor = false;
-          if (state.activeSkill) {
-            var ad = PM_SKILLS[state.activeSkill.domain];
-            if (ad && ad.skills[state.activeSkill.key] && ad.skills[state.activeSkill.key].interactive) {
-              isMentor = true;
-            }
-          }
-          if (isMentor) {
-            addCopyOnlyAction(bubbleEl, content);
-          } else {
-            addAllFormatActions(bubbleEl, content);
-          }
-          saveHistory();
-          // 工作流自动下一步（导师模式下不自动推进）
-          if (state.workflow && !isMentor) {
-            setTimeout(function () { advanceWorkflow(); }, 1500);
-          }
-        }
-      } catch (err) {
-        hideTyping(); hideThinking();
-        if (err.name === 'AbortError') {
-          bubbleEl.innerHTML = markdownToHtml((bubbleEl.getAttribute('data-raw') || '') + '\n\n*[已停止]*');
-        } else {
-          bubbleEl.innerHTML = '<p style="color:#EF4444">请求失败: ' + escapeHtml(err.message) + '</p>';
-        }
-      } finally {
-        state.isStreaming = false; state.currentBubble = null; state.abortController = null;
-        hideTyping();
-      }
-    }
-
-    // ===== 历史存储 =====
-    function saveHistory() {
-      try { sessionStorage.setItem('pm_history', JSON.stringify(state.messages.slice(-30))); } catch (e) {}
-    }
-    function loadHistory() {
-      try {
-        var raw = sessionStorage.getItem('pm_history');
-        if (raw) { state.messages = JSON.parse(raw); state.messages.forEach(function (m) { addMsg(m.role, m.content, false); }); }
-      } catch (e) {}
-    }
-
-    // ===== 打开/关闭工作区 =====
-    function openWorkspace() {
-      workspace.classList.add('workspace--active');
-      workspace.setAttribute('aria-hidden', 'false');
-      document.body.style.overflow = 'hidden';
-      setTimeout(function () { workspaceInput.focus(); }, 400);
-    }
-    function closeWorkspace() {
-      workspace.classList.remove('workspace--active');
-      workspace.setAttribute('aria-hidden', 'true');
-      document.body.style.overflow = '';
-      heroInput.focus();
-    }
-
-    // ===== 技能侧边栏 =====
-    function initSkillSidebar() {
-      if (!sidebarNav || !PM_SKILLS) return;
-
-      Object.keys(PM_SKILLS).forEach(function (domainKey) {
-        var domain = PM_SKILLS[domainKey];
-
-        var domainEl = document.createElement('div');
-        domainEl.className = 'sidebar__domain sidebar__domain--open';
-        domainEl.innerHTML = '<button class="sidebar__domain-toggle">' + domain.icon + ' ' + domain.name + '</button>' +
-          '<div class="sidebar__domain-skills"></div>';
-
-        var skillsEl = domainEl.querySelector('.sidebar__domain-skills');
-        Object.keys(domain.skills).forEach(function (skillKey) {
-          var skill = domain.skills[skillKey];
-          var btn = document.createElement('button');
-          btn.className = 'sidebar__skill';
-          btn.textContent = skill.icon + ' ' + skill.name;
-          btn.addEventListener('click', function () {
-            // 选中技能
-            state.activeSkill = { domain: domainKey, key: skillKey, prompt: skill.prompt };
-            domainEl.querySelectorAll('.sidebar__skill').forEach(function (b) { b.classList.remove('sidebar__skill--active'); });
-            btn.classList.add('sidebar__skill--active');
-            // 填入工作区输入框
-            workspaceInput.value = skill.prompt;
-            workspaceInput.style.height = 'auto';
-            workspaceInput.style.height = Math.min(workspaceInput.scrollHeight, 120) + 'px';
-            workspaceInput.focus();
-          });
-          skillsEl.appendChild(btn);
-        });
-
-        // 折叠/展开
-        domainEl.querySelector('.sidebar__domain-toggle').addEventListener('click', function () {
-          domainEl.classList.toggle('sidebar__domain--open');
-        });
-
-        sidebarNav.appendChild(domainEl);
-      });
-
-      // 搜索
-      if (sidebarSearch) {
-        sidebarSearch.addEventListener('input', function () {
-          var q = sidebarSearch.value.trim().toLowerCase();
-          sidebarNav.querySelectorAll('.sidebar__domain').forEach(function (d) {
-            if (!q) { d.style.display = ''; return; }
-            var hasMatch = false;
-            d.querySelectorAll('.sidebar__skill').forEach(function (s) {
-              if (s.textContent.toLowerCase().indexOf(q) >= 0) { s.style.display = ''; hasMatch = true; }
-              else { s.style.display = 'none'; }
-            });
-            d.style.display = hasMatch ? '' : 'none';
-            if (hasMatch) d.classList.add('sidebar__domain--open');
-          });
-        });
-      }
-    }
-
-    // ===== 斜杠命令 =====
-    var cmdIndex = -1;
-    function showCommands(query) {
-      if (!cmdPopup || !cmdPopupList) return;
-      var results = searchCommands(query);
-      if (!results.length) { cmdPopup.hidden = true; return; }
-      cmdPopup.hidden = false;
-      cmdIndex = -1;
-      cmdPopupList.innerHTML = '';
-      results.forEach(function (r, i) {
-        var item = document.createElement('button');
-        item.className = 'cmd-popup__item';
-        item.innerHTML = '<span class="cmd-popup__item-key">' + r.key + '</span>' +
-                         '<span>' + r.cmd.name + '</span>' +
-                         '<span class="cmd-popup__item-desc">' + (r.cmd.desc || '') + '</span>';
-        item.addEventListener('click', function () {
-          executeCommand(r.key, r.cmd);
-        });
-        cmdPopupList.appendChild(item);
-      });
-    }
-    function hideCommands() { if (cmdPopup) cmdPopup.hidden = true; cmdIndex = -1; }
-    function navigateCommands(dir) {
-      var items = cmdPopupList.querySelectorAll('.cmd-popup__item');
-      if (!items.length) return;
-      if (cmdIndex >= 0) items[cmdIndex].classList.remove('cmd-popup__item--active');
-      cmdIndex += dir;
-      if (cmdIndex >= items.length) cmdIndex = 0;
-      if (cmdIndex < 0) cmdIndex = items.length - 1;
-      items[cmdIndex].classList.add('cmd-popup__item--active');
-    }
-    function selectCommand() {
-      var active = cmdPopupList.querySelector('.cmd-popup__item--active');
-      if (active) active.click();
-    }
-
-    function executeCommand(key, cmd) {
-      hideCommands();
-      if (!workspace.classList.contains('workspace--active')) openWorkspace();
-
-      if (cmd.flow) {
-        // 构建工作流步骤
-        var steps = [];
-        cmd.flow.forEach(function (skillKey) {
-          var found = null, foundDomain = null;
-          Object.keys(PM_SKILLS).forEach(function (dk) {
-            if (PM_SKILLS[dk].skills[skillKey]) {
-              found = PM_SKILLS[dk].skills[skillKey]; foundDomain = dk;
-            }
-          });
-          if (found) steps.push({ domain: foundDomain, key: skillKey, name: found.name, icon: found.icon, prompt: found.prompt });
-          else steps.push({ domain: cmd.domain, key: skillKey, name: skillKey, icon: '📋', prompt: skillKey });
-        });
-        state.workflow = { name: cmd.name, steps: steps, currentStep: 0, domain: cmd.domain };
-        state.activeSkill = { domain: steps[0].domain, key: steps[0].key, prompt: steps[0].prompt };
-        workspaceInput.value = steps[0].prompt;
-        showWorkflowProgress();
-      } else if (cmd.skill) {
-        var s = null, d = null;
-        Object.keys(PM_SKILLS).forEach(function (dk) {
-          if (PM_SKILLS[dk].skills[cmd.skill]) { s = PM_SKILLS[dk].skills[cmd.skill]; d = dk; }
-        });
-        if (s) {
-          state.activeSkill = { domain: d, key: cmd.skill, prompt: s.prompt };
-          workspaceInput.value = s.prompt;
-        } else {
-          workspaceInput.value = key;
-        }
-      } else {
-        workspaceInput.value = key;
-      }
-      workspaceInput.style.height = 'auto';
-      workspaceInput.style.height = Math.min(workspaceInput.scrollHeight, 120) + 'px';
-      workspaceInput.focus();
-    }
-
-    // ===== 工作流进度 =====
-    function showWorkflowProgress() {
-      var wf = state.workflow;
-      if (!wf) return;
-      var existing = document.querySelector('.workflow-progress');
-      if (existing) existing.remove();
-
-      var bar = document.createElement('div');
-      bar.className = 'workflow-progress';
-      var html = '<div class="workflow-progress__bar"><div class="workflow-progress__fill" style="width:' +
-        ((wf.currentStep / wf.steps.length) * 100) + '%"></div></div>';
-      html += '<div class="workflow-progress__steps">';
-      wf.steps.forEach(function (s, i) {
-        var cls = i < wf.currentStep ? 'done' : (i === wf.currentStep ? 'current' : '');
-        html += '<span class="workflow-progress__step workflow-progress__step--' + cls + '">' +
-          s.icon + ' ' + s.name + '</span>';
-      });
-      html += '<button class="workflow-progress__cancel" title="停止工作流">✕ 停止</button>';
-      html += '</div>';
-      bar.innerHTML = html;
-      bar.querySelector('.workflow-progress__cancel').addEventListener('click', function () {
-        state.workflow = null;
-        state.activeSkill = null;
-        bar.innerHTML = '<div style="text-align:center;color:var(--text-tertiary);padding:8px;font-size:13px">工作流已停止</div>';
-        setTimeout(function () { if (bar.parentNode) bar.remove(); }, 2000);
-      });
-      workspaceBody.insertBefore(bar, workspaceBody.firstChild);
-    }
-
-    function updateWorkflowProgress() {
-      var wf = state.workflow;
-      if (!wf) return;
-      var fill = document.querySelector('.workflow-progress__fill');
-      if (fill) fill.style.width = ((wf.currentStep / wf.steps.length) * 100) + '%';
-      var steps = document.querySelectorAll('.workflow-progress__step');
-      steps.forEach(function (s, i) {
-        s.className = 'workflow-progress__step workflow-progress__step--' +
-          (i < wf.currentStep ? 'done' : (i === wf.currentStep ? 'current' : ''));
-      });
-    }
-
-    function advanceWorkflow() {
-      var wf = state.workflow;
-      if (!wf) return;
-      wf.currentStep++;
-      if (wf.currentStep >= wf.steps.length) {
-        // 工作流完成
-        var bar = document.querySelector('.workflow-progress');
-        if (bar) {
-          bar.innerHTML = '<div style="text-align:center;color:var(--color-success);padding:8px;font-size:14px">✅ ' +
-            wf.name + ' — 全部步骤完成</div>';
-          setTimeout(function () { if (bar.parentNode) bar.remove(); }, 5000);
-        }
-        state.workflow = null;
-        state.activeSkill = null;
-        return;
-      }
-      // 进入下一步
-      var step = wf.steps[wf.currentStep];
-      state.activeSkill = { domain: step.domain, key: step.key, prompt: step.prompt };
-      updateWorkflowProgress();
-
-      // 自动发送下一步的提示词
-      var nextPrompt = '【工作流步骤 ' + (wf.currentStep + 1) + '/' + wf.steps.length + '：' + step.name + '】\n\n' + step.prompt;
-      workspaceInput.value = '';
-      sendMessage(nextPrompt);
-    }
-
-    // ===== 事件绑定 =====
-    // 英雄区提交
-    heroSubmit.addEventListener('click', function () {
-      var text = heroInput.value.trim();
-      if (!text) return;
-      heroInput.value = '';
-      openWorkspace();
-      sendMessage(text);
-    });
-    heroInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        var text = heroInput.value.trim();
-        if (text) { heroInput.value = ''; openWorkspace(); sendMessage(text); }
-      }
-    });
-    heroInput.addEventListener('input', function () {
-      heroInput.style.height = 'auto';
-      heroInput.style.height = Math.min(heroInput.scrollHeight, 160) + 'px';
-    });
-
-    // 英雄区域标签 — 显示该域技能
-    var heroDomainSkills = $('heroDomainSkills');
-    var heroDomainSkillsInner = $('heroDomainSkillsInner');
-    heroTags.forEach(function (tag) {
-      tag.addEventListener('click', function () {
-        var domainKey = tag.getAttribute('data-domain');
-        if (!domainKey || !PM_SKILLS || !PM_SKILLS[domainKey]) return;
-        // 切换 active 状态
-        heroTags.forEach(function (t) { t.classList.remove('hero__tag--active'); });
-        if (heroDomainSkills && heroDomainSkillsInner) {
-          if (heroDomainSkills.getAttribute('data-active') === domainKey) {
-            heroDomainSkills.hidden = true;
-            heroDomainSkills.removeAttribute('data-active');
-            return;
-          }
-          heroDomainSkills.hidden = false;
-          heroDomainSkills.setAttribute('data-active', domainKey);
-          tag.classList.add('hero__tag--active');
-          var domain = PM_SKILLS[domainKey];
-          heroDomainSkillsInner.innerHTML = '';
-          Object.keys(domain.skills).forEach(function (sk) {
-            var skill = domain.skills[sk];
-            var btn = document.createElement('button');
-            btn.className = 'hero__domain-skill';
-            btn.textContent = skill.icon + ' ' + skill.name;
-            btn.addEventListener('click', function (e) {
-              e.stopPropagation();
-              heroInput.value = skill.prompt;
-              heroInput.style.height = 'auto';
-              heroInput.style.height = Math.min(heroInput.scrollHeight, 160) + 'px';
-              heroInput.focus();
-              heroDomainSkills.hidden = true;
-            });
-            heroDomainSkillsInner.appendChild(btn);
-          });
-        }
-      });
-    });
-
-    // 工作区
-    // 移动端侧边栏切换
-    var sidebarToggle = $('workspaceSidebarToggle');
-    if (sidebarToggle && workspaceSidebar) {
-      sidebarToggle.addEventListener('click', function () {
-        workspaceSidebar.classList.toggle('workspace__sidebar--mobile-open');
-      });
-      // 点击侧边栏技能后自动关闭
-      workspaceSidebar.addEventListener('click', function (e) {
-        if (e.target.classList.contains('sidebar__skill')) {
-          workspaceSidebar.classList.remove('workspace__sidebar--mobile-open');
-        }
-      });
-    }
-
-    workspaceBack.addEventListener('click', closeWorkspace);
-    workspaceNew.addEventListener('click', function () {
-      state.messages = [];
-      try { sessionStorage.removeItem('pm_history'); } catch (e) {}
-      workspaceBody.innerHTML = '<div class="chat-msg chat-msg--assistant"><div class="chat-msg__avatar">Z</div><div class="chat-msg__bubble"><p>嗨，我是 <strong>Zinong2017 的 PM 助手</strong> 👋</p><p>把你的产品需求告诉我，我会按专业 PM 方法论帮你生成文档。</p></div></div>';
-      workspaceInput.focus();
-    });
-
-    workspaceSend.addEventListener('click', function () {
-      if (state.isStreaming && state.abortController) { state.abortController.abort(); return; }
-      var text = workspaceInput.value.trim();
-      if (!text) return;
-      workspaceInput.value = '';
-      sendMessage(text);
-    });
-    workspaceInput.addEventListener('keydown', function (e) {
-      // 命令弹窗键盘导航
-      if (!cmdPopup.hidden) {
-        if (e.key === 'ArrowDown') { e.preventDefault(); navigateCommands(1); return; }
-        if (e.key === 'ArrowUp') { e.preventDefault(); navigateCommands(-1); return; }
-        if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); selectCommand(); return; }
-        if (e.key === 'Escape') { e.preventDefault(); hideCommands(); return; }
-      }
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        if (state.isStreaming) return;
-        var text = workspaceInput.value.trim();
-        if (text) { workspaceInput.value = ''; hideCommands(); sendMessage(text); }
-      }
-    });
-    workspaceInput.addEventListener('input', function () {
-      workspaceInput.style.height = 'auto';
-      workspaceInput.style.height = Math.min(workspaceInput.scrollHeight, 120) + 'px';
-      // 检测斜杠命令
-      var val = workspaceInput.value;
-      if (val.startsWith('/') && val.indexOf(' ') === -1) {
-        showCommands(val.slice(1));
-      } else {
-        hideCommands();
-      }
-    });
-
-    // 思考过程折叠
-    if (workspaceThinkingToggle) {
-      workspaceThinkingToggle.addEventListener('click', function () {
-        var isOpen = workspaceThinking.classList.toggle('workspace__thinking--open');
-        workspaceThinkingToggle.setAttribute('aria-expanded', String(isOpen));
-      });
-    }
-
-    // ESC 关闭
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && workspace.classList.contains('workspace--active')) {
-        if (state.isStreaming) { state.abortController.abort(); }
-        closeWorkspace();
-      }
-    });
-
-    // 初始化技能侧边栏
-    initSkillSidebar();
-
-    // 历史加载
-    loadHistory();
-
-    // 移动端软键盘
-    if (typeof window.visualViewport !== 'undefined') {
-      window.visualViewport.addEventListener('resize', function () {
-        var vh = window.visualViewport.height;
-        var wh = window.innerHeight;
-        if (workspace.classList.contains('workspace--active') && vh < wh * 0.8) {
-          workspace.style.maxHeight = vh + 'px';
-        } else if (workspace.classList.contains('workspace--active')) {
-          workspace.style.maxHeight = '';
-        }
-      });
-    }
+  var sysPrompt=getSysPrompt();
+  if(state.activeSkill){
+    var sk=state.activeSkill;
+    var isInt=PM_SKILLS[sk.domain]&&PM_SKILLS[sk.domain].skills[sk.key]&&PM_SKILLS[sk.domain].skills[sk.key].interactive;
+    sysPrompt+=isInt?'\n\n## 当前模式：🎓 导师引导\n每次只问一个问题，等用户回答后再继续。用鼓励的语气，最后给出结构化总结。':
+      '\n\n## 当前技能：['+sk.key+']\n按该技能的专业方法论组织输出，但不限制结合其他知识。';
   }
+  var apiMsgs=[{role:'system',content:sysPrompt}].concat(state.messages.slice(-22));
 
-  /* ==============================================
-     邮箱复制
-     ============================================== */
-  function initCopyEmail() {
-    var btn = $('aboutCopyEmail');
-    var hint = $('aboutCopyHint');
-    if (!btn) return;
-    btn.addEventListener('click', function () {
-      var email = btn.getAttribute('data-email') || '';
-      function done() { if (hint) { hint.textContent = '已复制到剪贴板'; setTimeout(function () { hint.textContent = ''; }, 2000); } }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(email).then(done);
-      } else {
-        var ta = document.createElement('textarea'); ta.value = email;
-        ta.style.position = 'fixed'; ta.style.left = '-9999px';
-        document.body.appendChild(ta); ta.select();
-        try { document.execCommand('copy'); done(); } catch (e) { if (hint) hint.textContent = '请手动复制'; }
-        document.body.removeChild(ta);
-      }
+  setTimeout(function(){hideThinking()},THINK_STEPS.length*350+400);
+
+  var msgEl=document.createElement('div');msgEl.className='chat-msg chat-msg--assistant';
+  msgEl.innerHTML='<div class="chat-msg__avatar">Z</div><div class="chat-msg__bubble" data-raw=""></div>';
+  chatList.appendChild(msgEl);
+  var bubble=msgEl.querySelector('.chat-msg__bubble');state.currentBubble=bubble;
+
+  try{
+    var resp=await callAPI(apiMsgs);
+    if(!resp.ok)throw new Error('API 错误: '+resp.status);
+    var content=await handleStream(resp,bubble);removeCursor(bubble);
+    if(content){
+      state.messages.push({role:'assistant',content:content});
+      addAllActions(bubble,content);
+      saveCurrentConversation();updateHistoryList();
+      if(state.workflow)setTimeout(function(){advanceWorkflow()},1500);
+    }
+  }catch(err){
+    hideThinking();
+    if(err.name==='AbortError')bubble.innerHTML=md2html((bubble.getAttribute('data-raw')||'')+'\n\n*[已停止]*');
+    else bubble.innerHTML='<p style="color:#EF4444">请求失败: '+esc(err.message)+'</p>';
+  }finally{state.isStreaming=false;state.currentBubble=null;state.abortController=null;hideTyping()}
+}
+
+/* ====== 格式输出 ====== */
+function downloadWord(md){var h=md2html(md);var d=new Date();var ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>@page{size:A4;margin:2cm}body{font-family:"Microsoft YaHei",sans-serif;font-size:12pt;line-height:1.8;color:#333}h1{font-size:18pt;color:#1E293B;border-bottom:2px solid #3B82F6;padding-bottom:8px}h2{font-size:15pt}h3{font-size:13pt;color:#3B82F6}table{border-collapse:collapse}th,td{border:1px solid #E2E8F0;padding:8px}th{background:#F1F5F9}code{background:#F1F5F9;padding:2px 6px}pre{background:#1E293B;color:#fff;padding:12px}</style></head><body><p style="color:#94A3B8;font-size:10pt">Zinong2017 PM | '+ds+'</p>'+h+'<hr><p style="color:#94A3B8;font-size:10pt">© '+d.getFullYear()+' Zinong2017</p></body></html>';var b=new Blob(['﻿'+html],{type:'application/msword;charset=utf-8'});downloadBlob(b,'PM文档_'+ds+'.doc')}
+function downloadPPT(md){var h=md2html(md);var slides=h.split(/<h2>(.*?)<\/h2>/);var ppt='<div class="slide slide--cover"><div class="slide__content"><h1>📊 演示文稿</h1><p style="color:#94A3B8">Zinong2017 PM 助手</p></div></div>';for(var i=0;i<slides.length;i++){if(!slides[i].trim())continue;if(i%2===1){ppt+='<div class="slide"><div class="slide__content"><h2>'+slides[i]+'</h2>'+(slides[i+1]||'')+'</div></div>';i++}}var ds=new Date().toISOString().slice(0,10);var html='<html><head><meta charset="utf-8"><style>@page{size:screen;margin:0}body{font-family:"Microsoft YaHei",sans-serif;background:#0F172A;color:#E2E8F0;margin:0}.slide{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;padding:60px;box-sizing:border-box;page-break-after:always}.slide--cover{background:linear-gradient(135deg,#1E293B,#312E81)}.slide__content{max-width:800px}h1{font-size:48px;color:#F8FAFC}h2{font-size:32px;color:#818CF8;border-bottom:2px solid #6366F1;padding-bottom:12px;margin-bottom:20px}p,li{font-size:20px;line-height:1.8;color:#CBD5E1}ul{padding-left:24px}</style></head><body>'+ppt+'<div class="slide slide--cover"><div class="slide__content"><h2>感谢阅读</h2><p>Zinong2017 PM | '+ds+'</p></div></div></body></html>';var b=new Blob(['﻿'+html],{type:'application/msword;charset=utf-8'});downloadBlob(b,'PM演示_'+ds+'.ppt')}
+function openDashboard(md){var h=md2html(md);var ds=new Date().toISOString().slice(0,10);var html='<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PM 仪表盘</title><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Inter","Noto Sans SC",sans-serif;background:#0F172A;color:#E2E8F0;padding:24px}.dash-header{text-align:center;margin-bottom:24px;padding:20px;background:linear-gradient(135deg,#1E293B,#312E81);border-radius:16px}.dash-header h1{font-size:24px;color:#F8FAFC}.content{background:#1E293B;border-radius:12px;padding:24px;margin-bottom:16px}.content h2{color:#818CF8;margin-bottom:12px}.content table{width:100%;border-collapse:collapse}.content th,.content td{border:1px solid #334155;padding:8px 12px}.content th{background:#0F172A;color:#818CF8}.footer{text-align:center;color:#64748B;font-size:13px;margin-top:24px;padding-top:16px;border-top:1px solid #1E293B}@media(max-width:768px){body{padding:12px}}</style></head><body><div class="dash-header"><h1>📈 PM 数据仪表盘</h1><p style="color:#94A3B8">Zinong2017 | '+ds+'</p></div><div class="content">'+h+'</div><div class="footer">Zinong2017 AI 分身 · 数据仅供参考</div><script>document.querySelectorAll("table").forEach(function(t,i){if(i>2)return;var hd=[];t.querySelectorAll("th").forEach(function(th){hd.push(th.textContent)});var rows=[];t.querySelectorAll("tr").forEach(function(tr,ri){if(ri===0)return;var r=[];tr.querySelectorAll("td").forEach(function(td){r.push(td.textContent)});if(r.length)rows.push(r)});if(rows.length&&hd.length){var box=document.createElement("div");box.style.cssText="background:#1E293B;border-radius:12px;padding:20px;margin-bottom:16px";box.innerHTML="<h3 style=\\"color:#A5B4FC;margin-bottom:12px\\">📊 数据趋势</h3><canvas id=\\"chart"+i+"\\"></canvas>";t.parentNode.insertBefore(box,t);new Chart(document.getElementById("chart"+i),{type:"bar",data:{labels:rows.map(function(r){return r[0]}),datasets:[{label:hd[1]||"数值",data:rows.map(function(r){return parseFloat(r[1])||0}),backgroundColor:"#818CF8",borderRadius:6}]},options:{responsive:true,plugins:{legend:{labels:{color:"#94A3B8"}}}}})}})<\/script></body></html>';var b=new Blob(['﻿'+html],{type:'text/html;charset=utf-8'});window.open(URL.createObjectURL(b),'_blank')}
+
+function downloadBlob(blob,filename){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a)}
+function copyText(text){var done=function(){toast('已复制到剪贴板')};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(function(){fallbackCopy(text,done)})}else{fallbackCopy(text,done)}}
+function fallbackCopy(text,cb){var ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;left:-9999px';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');cb()}catch(e){toast('复制失败')}document.body.removeChild(ta)}
+function toast(msg){var t=document.querySelector('.pm-toast');if(!t){t=document.createElement('div');t.className='pm-toast';document.body.appendChild(t)}t.textContent=msg;t.style.opacity='1';clearTimeout(t._t);t._t=setTimeout(function(){t.style.opacity='0'},2000)}
+
+/* ====== 工作流 ====== */
+function showWorkflowProgress(){
+  var wf=state.workflow;if(!wf)return;
+  var old=document.querySelector('.workflow-progress');if(old)old.remove();
+  var bar=document.createElement('div');bar.className='workflow-progress';
+  var html='<div class="workflow-progress__inner"><div class="workflow-progress__bar"><div class="workflow-progress__fill" style="width:'+(wf.currentStep/wf.steps.length*100)+'%"></div></div><div class="workflow-progress__steps">';
+  wf.steps.forEach(function(s,i){var cls=i<wf.currentStep?'done':(i===wf.currentStep?'current':'');html+='<span class="workflow-progress__step workflow-progress__step--'+cls+'">'+s.icon+' '+s.name+'</span>'});
+  html+='<button class="workflow-progress__cancel">✕ 停止</button></div></div>';
+  bar.innerHTML=html;
+  bar.querySelector('.workflow-progress__cancel').addEventListener('click',function(){state.workflow=null;state.activeSkill=null;bar.innerHTML='<div style="text-align:center;color:var(--text-tertiary);padding:8px;font-size:13px">工作流已停止</div>';setTimeout(function(){if(bar.parentNode)bar.remove()},2000)});
+  chatList.insertBefore(bar,chatList.firstChild);
+}
+function advanceWorkflow(){
+  var wf=state.workflow;if(!wf)return;
+  wf.currentStep++;
+  if(wf.currentStep>=wf.steps.length){
+    var bar=document.querySelector('.workflow-progress');if(bar){bar.innerHTML='<div style="text-align:center;color:var(--color-success);padding:8px;font-size:13px">✅ '+wf.name+' — 全部步骤完成</div>';setTimeout(function(){if(bar.parentNode)bar.remove()},5000)}
+    state.workflow=null;state.activeSkill=null;return;
+  }
+  var step=wf.steps[wf.currentStep];state.activeSkill={domain:step.domain,key:step.key,prompt:step.prompt};
+  var fill=document.querySelector('.workflow-progress__fill');if(fill)fill.style.width=(wf.currentStep/wf.steps.length*100)+'%';
+  var steps=document.querySelectorAll('.workflow-progress__step');steps.forEach(function(s,i){s.className='workflow-progress__step workflow-progress__step--'+(i<wf.currentStep?'done':(i===wf.currentStep?'current':''))});
+  chatInput.value='';sendMessage('【'+wf.name+' 步骤'+(wf.currentStep+1)+'/'+wf.steps.length+'：'+step.name+'】\n\n'+step.prompt);
+}
+
+/* ====== 命令 ====== */
+var cmdIndex=-1;
+function showCommands(q){if(!cmdPopup||!cmdPopupList)return;var r=searchCommands(q);if(!r.length){cmdPopup.hidden=true;return}cmdPopup.hidden=false;cmdIndex=-1;cmdPopupList.innerHTML='';r.forEach(function(x,i){var it=document.createElement('button');it.className='cmd-popup__item';it.innerHTML='<span class="cmd-popup__item-key">'+x.key+'</span><span>'+x.cmd.name+'</span><span class="cmd-popup__item-desc">'+(x.cmd.desc||'')+'</span>';it.addEventListener('click',function(){execCommand(x.key,x.cmd)});cmdPopupList.appendChild(it)})}
+function hideCommands(){cmdPopup.hidden=true;cmdIndex=-1}
+function navCmd(dir){var items=cmdPopupList.querySelectorAll('.cmd-popup__item');if(!items.length)return;if(cmdIndex>=0)items[cmdIndex].classList.remove('cmd-popup__item--active');cmdIndex+=dir;if(cmdIndex>=items.length)cmdIndex=0;if(cmdIndex<0)cmdIndex=items.length-1;items[cmdIndex].classList.add('cmd-popup__item--active')}
+function selCmd(){var a=cmdPopupList.querySelector('.cmd-popup__item--active');if(a)a.click()}
+
+function execCommand(key,cmd){
+  hideCommands();
+  if(cmd.flow){
+    var steps=[];cmd.flow.forEach(function(sk){var f=null,fd=null;Object.keys(PM_SKILLS).forEach(function(dk){if(PM_SKILLS[dk].skills[sk]){f=PM_SKILLS[dk].skills[sk];fd=dk}});if(f)steps.push({domain:fd,key:sk,name:f.name,icon:f.icon,prompt:f.prompt});else steps.push({domain:cmd.domain,key:sk,name:sk,icon:'📋',prompt:sk})});
+    state.workflow={name:cmd.name,steps:steps,currentStep:0,domain:cmd.domain};
+    state.activeSkill={domain:steps[0].domain,key:steps[0].key,prompt:steps[0].prompt};
+    chatInput.value=steps[0].prompt;showWorkflowProgress();
+  }else if(cmd.skill){
+    var s=null,d=null;Object.keys(PM_SKILLS).forEach(function(dk){if(PM_SKILLS[dk].skills[cmd.skill]){s=PM_SKILLS[dk].skills[cmd.skill];d=dk}});
+    if(s){state.activeSkill={domain:d,key:cmd.skill,prompt:s.prompt};chatInput.value=s.prompt}else{chatInput.value=key}
+  }else{chatInput.value=key}
+  chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,140)+'px';chatInput.focus();
+}
+
+/* ====== 侧边栏 ====== */
+function initSidebar(){
+  if(!sidebarSkills||!PM_SKILLS)return;
+  Object.keys(PM_SKILLS).forEach(function(dk){
+    var dom=PM_SKILLS[dk];var de=document.createElement('div');de.className='sidebar__domain sidebar__domain--open';
+    de.innerHTML='<button class="sidebar__domain-toggle">'+dom.icon+' '+dom.name+'</button><div class="sidebar__domain-skills"></div>';
+    var se=de.querySelector('.sidebar__domain-skills');
+    Object.keys(dom.skills).forEach(function(sk){
+      var s=dom.skills[sk];var btn=document.createElement('button');btn.className='sidebar__skill-btn';
+      btn.textContent=s.icon+' '+s.name;
+      btn.addEventListener('click',function(){state.activeSkill={domain:dk,key:sk,prompt:s.prompt};chatInput.value=s.prompt;chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,140)+'px';chatInput.focus()});
+      se.appendChild(btn);
     });
-  }
+    de.querySelector('.sidebar__domain-toggle').addEventListener('click',function(){de.classList.toggle('sidebar__domain--open')});
+    sidebarSkills.appendChild(de);
+  });
+  if(sidebarSearch){sidebarSearch.addEventListener('input',function(){var q=sidebarSearch.value.trim().toLowerCase();sidebarSkills.querySelectorAll('.sidebar__domain').forEach(function(d){if(!q){d.style.display='';return}var m=false;d.querySelectorAll('.sidebar__skill-btn').forEach(function(s){if(s.textContent.toLowerCase().indexOf(q)>=0){s.style.display='';m=true}else{s.style.display='none'}});d.style.display=m?'':'';if(m)d.classList.add('sidebar__domain--open')})})}
+}
 
-  /* ==============================================
-     微信弹窗
-     ============================================== */
-  function initWechatModal() {
-    var modal = $('wechatModal');
-    var trigger = $('footerWechat');
-    if (!modal) return;
-    function close() { modal.hidden = true; document.body.style.overflow = ''; }
-    if (trigger) { trigger.addEventListener('click', function (e) { e.preventDefault(); modal.hidden = false; document.body.style.overflow = 'hidden'; }); }
-    modal.querySelectorAll('[data-close-modal]').forEach(function (el) { el.addEventListener('click', close); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.hidden) close(); });
-  }
+/* ====== 事件 ====== */
+chatSend.addEventListener('click',function(){if(state.isStreaming&&state.abortController){state.abortController.abort();return}var t=chatInput.value.trim();if(!t)return;chatInput.value='';hideCommands();sendMessage(t)});
+chatInput.addEventListener('keydown',function(e){
+  if(!cmdPopup.hidden){if(e.key==='ArrowDown'){e.preventDefault();navCmd(1);return}if(e.key==='ArrowUp'){e.preventDefault();navCmd(-1);return}if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();selCmd();return}if(e.key==='Escape'){e.preventDefault();hideCommands();return}}
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(state.isStreaming)return;var t=chatInput.value.trim();if(t){chatInput.value='';hideCommands();sendMessage(t)}}
+});
+chatInput.addEventListener('input',function(){chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,140)+'px';var v=chatInput.value;if(v.startsWith('/')&&v.indexOf(' ')===-1)showCommands(v.slice(1));else hideCommands()});
 
-  /* ==============================================
-     滚动渐入
-     ============================================== */
-  function initReveal() {
-    var els = document.querySelectorAll('.reveal');
-    if (!els.length) return;
-    if (typeof IntersectionObserver === 'undefined') { els.forEach(function (el) { el.classList.add('visible'); }); return; }
-    var observer = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) { if (entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); } });
-    }, { threshold: 0.08 });
-    els.forEach(function (el) { observer.observe(el); });
-    setTimeout(function () { els.forEach(function (el) { var r = el.getBoundingClientRect(); if (r.top < window.innerHeight * 1.2) el.classList.add('visible'); }); }, 1200);
-  }
+mainMenuBtn.addEventListener('click',function(){sidebar.classList.toggle('sidebar--open')});
+sidebarNewChat.addEventListener('click',function(){saveCurrentConversation();newConversation();chatInput.focus()});
+thinkingToggle&&thinkingToggle.addEventListener('click',function(){var o=thinkingBar.classList.toggle('thinking-bar--open');thinkingToggle.setAttribute('aria-expanded',String(o))});
 
-  /* ==============================================
-     启动
-     ============================================== */
-  function boot() {
-    initParticles();
-    initPmAgent();
-    initCopyEmail();
-    initWechatModal();
-    initReveal();
-  }
+inputTags.forEach(function(t){t.addEventListener('click',function(){var dk=t.getAttribute('data-domain');if(!dk||!PM_SKILLS||!PM_SKILLS[dk])return;var dom=PM_SKILLS[dk];var skills=Object.keys(dom.skills).slice(0,4);var prompts=skills.map(function(k){return dom.skills[k].icon+' '+dom.skills[k].name}).join('  ');chatInput.value='请帮我从以下能力中选择：'+prompts;chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,140)+'px';chatInput.focus()})});
+welcomeCards.forEach(function(c){c.addEventListener('click',function(){var p=c.getAttribute('data-prompt');if(p){chatInput.value=p;chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,140)+'px';chatInput.focus()}})});
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&sidebar.classList.contains('sidebar--open')){sidebar.classList.remove('sidebar--open')}});
+
+/* ====== 滚动 ====== */
+function scrollBottom(){chatList.parentElement.scrollTop=chatList.parentElement.scrollHeight}
+
+/* ====== 微信 ====== */
+(function(){var m=$('wechatModal');if(!m)return;var close=function(){m.hidden=true};document.querySelectorAll('[data-close-modal]').forEach(function(e){e.addEventListener('click',close)});document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!m.hidden)close()})})();
+
+/* ====== 启动 ====== */
+loadConversations();
+if(Object.keys(state.conversations).length===0)newConversation();
+initSidebar();
+updateHistoryList();
+chatInput.focus();
 })();

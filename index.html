@@ -3,277 +3,172 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-  <meta name="format-detection" content="telephone=no">
-  <meta name="theme-color" content="#0A0E17">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="description" content="Zinong2017 — AI Agent 产品经理 · 专注智能体体验与产品策略">
-  <title>Zinong2017 | AI Agent 产品经理</title>
-
-  <!-- GitHub Pages 子路径适配 -->
+  <meta name="theme-color" content="#0F172A">
+  <meta name="description" content="Zinong2017 — AI Agent 产品经理 · PM 数字员工">
+  <title>Zinong2017 | PM 数字员工</title>
   <base href="./" id="site-base">
   <script>
-    (function () {
-      var host = location.hostname || '';
-      var path = location.pathname || '/';
-      var isGitHub = /github\.io$/i.test(host);
-      if (isGitHub) {
-        document.getElementById('site-base').href = '/zinong2017/';
-        if (/\/zinong2017$/.test(path)) {
-          location.replace(path + '/' + location.search + location.hash);
-        }
-      }
-    })();
+    (function(){var h=location.hostname||'',p=location.pathname||'/';if(/github\.io$/i.test(h)){document.getElementById('site-base').href='/zinong2017/';if(/\/zinong2017$/.test(p))location.replace(p+'/'+location.search+location.hash);}})();
   </script>
-
-  <!-- 字体 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-  <!-- 样式 -->
   <link rel="stylesheet" href="css/style.css">
-
-  <!-- marked.js：专业 Markdown 渲染 -->
   <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
 </head>
 <body>
-  <!-- ====== 粒子背景画布 ====== -->
-  <canvas id="particleCanvas" aria-hidden="true"></canvas>
-
-  <!-- ====== 导航栏 ====== -->
-  <header class="nav" id="nav">
-    <div class="nav__inner">
-      <a href="#" class="nav__logo">Zinong<span class="nav__logo-accent">2017</span></a>
-      <nav class="nav__links" aria-label="主导航">
-        <a href="#hero" class="nav__link">首页</a>
-        <a href="#about" class="nav__link">关于</a>
-        <a href="#skills" class="nav__link">能力</a>
-      </nav>
-    </div>
-  </header>
-
-  <main>
-    <!-- ====== Hero 区：大输入框 ====== -->
-    <section class="hero" id="hero">
-      <!-- 光晕背景 -->
-      <div class="hero__glow hero__glow--top" aria-hidden="true"></div>
-      <div class="hero__glow hero__glow--bottom" aria-hidden="true"></div>
-
-      <div class="hero__content">
-        <!-- 个人品牌 -->
-        <div class="hero__brand">
-          <div class="hero__avatar" aria-hidden="true">Z</div>
-          <h1 class="hero__name">Zinong2017</h1>
-          <p class="hero__title">AI Agent 产品经理</p>
-          <p class="hero__subtitle">用产品设计思维定义下一代智能体体验</p>
-        </div>
-
-        <!-- 大输入框 -->
-        <div class="hero__input-wrapper" id="heroInputWrapper">
-          <div class="hero__input-glow" aria-hidden="true"></div>
-          <textarea
-            class="hero__input"
-            id="heroInput"
-            rows="1"
-            placeholder="输入你的需求：写 PRD / 竞品分析 / 需求拆解 / 方案评审..."
-            aria-label="输入 PM 需求"
-            maxlength="3000"
-          ></textarea>
-          <button type="button" class="hero__submit" id="heroSubmit" aria-label="开始">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22">
-              <path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>
-            </svg>
-          </button>
-        </div>
-
-        <!-- 技能标签 -->
-        <div class="hero__tags" id="heroTags">
-          <button type="button" class="hero__tag" data-domain="discovery">🔍 产品发现</button>
-          <button type="button" class="hero__tag" data-domain="strategy">🎯 产品策略</button>
-          <button type="button" class="hero__tag" data-domain="execution">⚡ 产品执行</button>
-          <button type="button" class="hero__tag" data-domain="research">📊 市场研究</button>
-          <button type="button" class="hero__tag" data-domain="analytics">📈 数据分析</button>
-          <button type="button" class="hero__tag" data-domain="gtm">🚀 市场进入</button>
-          <button type="button" class="hero__tag" data-domain="marketing">📣 营销增长</button>
-          <button type="button" class="hero__tag" data-domain="toolkit">🧰 PM 工具箱</button>
-        </div>
-        <!-- 技能子菜单 -->
-        <div class="hero__domain-skills" id="heroDomainSkills" hidden>
-          <div class="hero__domain-skills-inner" id="heroDomainSkillsInner"></div>
-        </div>
-
-        <!-- 滚动提示 -->
-        <div class="hero__scroll-hint" aria-hidden="true">
-          <span>了解更多</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M6 9l6 6 6-6"/></svg>
-        </div>
-      </div>
-    </section>
-
-    <!-- ====== 对话工作区（初始隐藏） ====== -->
-    <section class="workspace" id="workspace" aria-hidden="true">
-      <!-- 侧边栏：技能面板 -->
-      <aside class="workspace__sidebar" id="workspaceSidebar">
-        <div class="sidebar__search">
-          <input type="text" class="sidebar__search-input" id="sidebarSearch" placeholder="搜索技能..." aria-label="搜索技能">
-        </div>
-        <nav class="sidebar__nav" id="sidebarNav" aria-label="PM 技能分类">
-          <!-- JS 动态填充 -->
-        </nav>
-      </aside>
-
-      <!-- 主对话区 -->
-      <div class="workspace__main">
-      <div class="workspace__header">
-        <button type="button" class="workspace__back" id="workspaceBack" aria-label="返回首页">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M15 18l-6-6 6-6"/></svg>
-          返回
-        </button>
-        <button type="button" class="workspace__sidebar-toggle" id="workspaceSidebarToggle" aria-label="技能面板" title="技能面板">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
-        </button>
-        <span class="workspace__title">Zinong2017 · PM 助手</span>
-        <button type="button" class="workspace__new" id="workspaceNew" title="新建对话" aria-label="新建对话">
+  <!-- ====== 主容器：豆包风格双栏 ====== -->
+  <div class="app" id="app">
+    <!-- ====== 左侧栏 ====== -->
+    <aside class="sidebar" id="sidebar">
+      <!-- 新对话按钮 -->
+      <div class="sidebar__top">
+        <button class="sidebar__new-chat" id="sidebarNewChat">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 5v14M5 12h14"/></svg>
+          新对话
         </button>
+        <!-- 搜索技能 -->
+        <div class="sidebar__search-wrap">
+          <input type="text" class="sidebar__search" id="sidebarSearch" placeholder="搜索 PM 技能..." autocomplete="off">
+        </div>
       </div>
 
-      <div class="workspace__body" id="workspaceBody">
-        <!-- 欢迎消息 -->
-        <div class="chat-msg chat-msg--assistant">
-          <div class="chat-msg__avatar" aria-hidden="true">Z</div>
-          <div class="chat-msg__bubble">
-            <p>嗨，我是 <strong>Zinong2017 的 PM 助手</strong> 👋</p>
-            <p>把你的产品需求告诉我，我会按专业 PM 方法论帮你生成文档：PRD、竞品分析、需求拆解、指标设计……</p>
-            <p>支持 <strong>下载 Word</strong> 📥 和 <strong>复制全文</strong> 📋</p>
+      <!-- 技能域列表 -->
+      <nav class="sidebar__skills" id="sidebarSkills">
+        <!-- JS 填充 -->
+      </nav>
+
+      <!-- 对话历史 -->
+      <div class="sidebar__history" id="sidebarHistory">
+        <div class="sidebar__history-title">对话历史</div>
+        <div class="sidebar__history-list" id="sidebarHistoryList">
+          <!-- JS 填充 -->
+        </div>
+      </div>
+
+      <!-- 用户区 -->
+      <div class="sidebar__user">
+        <div class="sidebar__user-avatar">Z</div>
+        <div class="sidebar__user-info">
+          <div class="sidebar__user-name">Zinong2017</div>
+          <div class="sidebar__user-role">PM 数字员工 · 56 技能</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ====== 主聊天区 ====== -->
+    <div class="main" id="main">
+      <!-- 顶部：模型标识 + 侧边栏展开 -->
+      <header class="main__header">
+        <button class="main__menu-btn" id="mainMenuBtn" aria-label="菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+        <div class="main__model-badge" id="mainModelBadge">
+          <span class="main__model-dot"></span>
+          DeepSeek · PM Agent
+        </div>
+      </header>
+
+      <!-- 聊天区域 -->
+      <div class="main__body" id="mainBody">
+        <!-- ====== 欢迎页 ====== -->
+        <div class="welcome" id="welcome">
+          <div class="welcome__inner">
+            <div class="welcome__avatar">Z</div>
+            <h1 class="welcome__title">Zinong2017 · PM 数字员工</h1>
+            <p class="welcome__desc">AI Agent 产品经理的 AI 分身 · 56 项 PM 技能随时待命</p>
+
+            <!-- 推荐话题卡片 -->
+            <div class="welcome__cards" id="welcomeCards">
+              <button class="welcome-card" data-prompt="帮我写一份 AI Agent 产品的 PRD 文档。产品方向你根据当前热点自行推荐。">
+                <span class="welcome-card__icon">📄</span>
+                <span class="welcome-card__title">撰写 PRD</span>
+                <span class="welcome-card__desc">完整产品需求文档</span>
+              </button>
+              <button class="welcome-card" data-prompt="请对主流 AI Agent 平台做一份竞品分析，对比功能、体验、定位和商业模式。">
+                <span class="welcome-card__icon">🔍</span>
+                <span class="welcome-card__title">竞品分析</span>
+                <span class="welcome-card__desc">多维对比与差异化建议</span>
+              </button>
+              <button class="welcome-card" data-prompt="请帮我设计一套 AI 产品的核心指标体系，包含北极星指标、过程指标和质量指标。">
+                <span class="welcome-card__icon">📊</span>
+                <span class="welcome-card__title">指标设计</span>
+                <span class="welcome-card__desc">北极星 + 过程 + 质量</span>
+              </button>
+              <button class="welcome-card" data-prompt="请作为 PM 职业导师，和我聊聊产品经理的职业发展规划。">
+                <span class="welcome-card__icon">🎓</span>
+                <span class="welcome-card__title">职业教练</span>
+                <span class="welcome-card__desc">PM 能力成长与规划</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ====== 消息列表 ====== -->
+        <div class="chat-list" id="chatList">
+          <!-- 欢迎消息 -->
+          <div class="chat-msg chat-msg--assistant chat-msg--welcome" id="chatWelcome">
+            <div class="chat-msg__avatar">Z</div>
+            <div class="chat-msg__bubble">
+              <p>你好！我是 <strong>Zinong2017 的 PM 数字员工</strong> 👋</p>
+              <p>我可以帮你完成产品经理的各类工作：写 PRD、竞品分析、需求拆解、策略规划、职业辅导……</p>
+              <p>输入 <code>/</code> 查看所有技能命令，或直接告诉我你需要什么。</p>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- 思考过程 -->
-      <div class="workspace__thinking" id="workspaceThinking" hidden>
-        <button type="button" class="workspace__thinking-toggle" id="workspaceThinkingToggle" aria-expanded="false">
-          <span>🧠</span> 思考过程 <span class="workspace__thinking-chevron">▾</span>
-        </button>
-        <div class="workspace__thinking-body" id="workspaceThinkingBody"></div>
-      </div>
-
-      <!-- 打字指示器 -->
-      <div class="workspace__typing" id="workspaceTyping" hidden>
-        <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
-        <span class="typing-label">生成中...</span>
-      </div>
-
-      <!-- 输入区 -->
-      <div class="workspace__footer">
-        <div class="workspace__input-row">
-          <textarea class="workspace__input" id="workspaceInput" rows="1"
-            placeholder="继续输入你的需求..."
-            aria-label="输入消息" maxlength="3000"></textarea>
-          <button type="button" class="workspace__send" id="workspaceSend" aria-label="发送">
-            <svg class="workspace__send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-            <svg class="workspace__stop-icon" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" hidden><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-          </button>
-        </div>
-        <p class="workspace__disclaimer">Zinong2017 AI 分身 · 内容由 DeepSeek 生成 · 仅供参考</p>
-      </div>
-      </div><!-- /workspace__main -->
-
-      <!-- 斜杠命令弹窗 -->
+      <!-- ====== 斜杠命令弹窗 ====== -->
       <div class="cmd-popup" id="cmdPopup" hidden>
         <div class="cmd-popup__list" id="cmdPopupList"></div>
       </div>
-    </section>
 
-    <!-- ====== 关于我 ====== -->
-    <section class="about" id="about">
-      <div class="about__grid">
-        <div class="about__card reveal">
-          <h3 class="about__card-title">关于我</h3>
-          <p>我是 Zinong2017，专注 AI Agent 方向的产品工作。设计专业背景让我习惯从「用户感知」倒推能力边界：对话是否可信、任务是否可预期、失败是否可恢复。日常在做需求定义、交互与流程设计、原型评审，以及与算法、研发的对齐落地。</p>
-        </div>
-        <div class="about__card reveal">
-          <h3 class="about__card-title">核心能力</h3>
-          <div class="about__chips">
-            <span class="about__chip">智能体产品设计</span>
-            <span class="about__chip">UX / 交互设计</span>
-            <span class="about__chip">产品策略</span>
-            <span class="about__chip">原型与可视化</span>
-            <span class="about__chip">需求定义与评审</span>
-            <span class="about__chip">跨团队协作</span>
-          </div>
-        </div>
-        <div class="about__card reveal">
-          <h3 class="about__card-title">联系我</h3>
-          <p>如果你在探索 Agent 产品、体验设计或产品合作，欢迎来信。</p>
-          <button type="button" class="about__email-btn" id="aboutCopyEmail" data-email="zinong2017@example.com">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="18" height="18"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-            zinong2017@example.com
-          </button>
-          <span class="about__copy-hint" id="aboutCopyHint" aria-live="polite"></span>
-        </div>
+      <!-- ====== 思考过程 ====== -->
+      <div class="thinking-bar" id="thinkingBar" hidden>
+        <button class="thinking-bar__toggle" id="thinkingToggle">
+          <span>🧠 思考过程</span>
+          <span class="thinking-bar__chevron">▾</span>
+        </button>
+        <div class="thinking-bar__body" id="thinkingBody"></div>
       </div>
-    </section>
 
-    <!-- ====== 技能 ====== -->
-    <section class="skills" id="skills">
-      <h2 class="skills__title reveal">我的擅长</h2>
-      <div class="skills__grid">
-        <div class="skill-card reveal">
-          <div class="skill-card__icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      <!-- ====== 输入区 ====== -->
+      <div class="input-area" id="inputArea">
+        <div class="input-area__row">
+          <!-- 技能标签 -->
+          <div class="input-area__tags" id="inputTags">
+            <button class="input-tag" data-domain="execution">📄 写文档</button>
+            <button class="input-tag" data-domain="strategy">🎯 定策略</button>
+            <button class="input-tag" data-domain="research">📊 做研究</button>
+            <button class="input-tag" data-domain="mentor">🎓 问导师</button>
+            <button class="input-tag" data-domain="analytics">📈 看数据</button>
+            <button class="input-tag" data-domain="toolkit">🧰 工具箱</button>
           </div>
-          <h3>Agent 产品设计</h3>
-          <p>意图识别、工具调用、多轮任务与记忆策略</p>
-        </div>
-        <div class="skill-card reveal">
-          <div class="skill-card__icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          <!-- 输入框 -->
+          <div class="input-area__box">
+            <textarea class="input-area__input" id="chatInput" rows="1"
+              placeholder="输入 PM 需求或按 / 使用命令..."
+              maxlength="3000" aria-label="输入消息"></textarea>
+            <button class="input-area__send" id="chatSend" aria-label="发送">
+              <svg class="input-area__send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              <svg class="input-area__stop-icon" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" hidden><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+            </button>
           </div>
-          <h3>UX / 交互设计</h3>
-          <p>对话流、状态反馈、异常与空状态体验</p>
         </div>
-        <div class="skill-card reveal">
-          <div class="skill-card__icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-          </div>
-          <h3>产品策略</h3>
-          <p>场景定义、MVP 拆解、指标与迭代节奏</p>
-        </div>
+        <p class="input-area__hint">内容由 DeepSeek 生成 · Zinong2017 AI 分身</p>
       </div>
-    </section>
-  </main>
-
-  <!-- ====== 页脚 ====== -->
-  <footer class="footer">
-    <div class="footer__links">
-      <a href="https://github.com/Zinong2017" target="_blank" rel="noopener noreferrer" class="footer__link" aria-label="GitHub">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.66-.22.66-.48 0-.24-.01-.87-.01-1.7-2.78.6-3.37-1.34-3.37-1.34-.45-1.15-1.11-1.46-1.11-1.46-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.58 9.58 0 0112 6.8c.85.004 1.71.115 2.51.337 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85 0 1.33-.01 2.4-.01 2.73 0 .27.16.58.67.48A10.01 10.01 0 0022 12c0-5.52-4.48-10-10-10z"/></svg>
-        <span>GitHub</span>
-      </a>
-      <a href="mailto:zinong2017@example.com" class="footer__link" aria-label="邮箱">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-        <span>邮箱</span>
-      </a>
-      <button type="button" class="footer__link" id="footerWechat" aria-label="微信">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8.5 4C4.36 4 1 6.69 1 10c0 1.89 1.08 3.56 2.78 4.66L3 19l4.55-2.37c.89.15 1.82.24 2.78.24 4.14 0 7.5-2.69 7.5-6 0-3.31-3.36-6-7.5-6z"/></svg>
-        <span>微信</span>
-      </button>
     </div>
-    <p class="footer__copy">© 2026 Zinong2017 · 设计智能体体验，让 AI 产品可被理解、可被信任</p>
-  </footer>
+  </div>
 
   <!-- ====== 微信弹窗 ====== -->
-  <div class="modal" id="wechatModal" role="dialog" aria-modal="true" aria-label="微信二维码" hidden>
+  <div class="modal" id="wechatModal" role="dialog" aria-modal="true" hidden>
     <div class="modal__backdrop" data-close-modal></div>
     <div class="modal__card">
-      <button type="button" class="modal__close" data-close-modal aria-label="关闭">&times;</button>
-      <h3 class="modal__title">扫码添加微信</h3>
+      <button class="modal__close" data-close-modal>&times;</button>
+      <h3>扫码添加微信</h3>
       <img class="modal__qr" src="assets/img/wechat-qr.png" alt="微信二维码" width="200" height="200"
-        onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23F7FAFC%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22 fill=%22%23718096%22 font-size=%2214%22%3E替换二维码%3C/text%3E%3C/svg%3E'">
-      <p class="modal__hint">扫码备注「Agent 产品」更易通过</p>
+        onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23F7FAFC%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 fill=%22%23718096%22 font-size=%2214%22%3E二维码%3C/text%3E%3C/svg%3E'">
+      <p>备注「Agent 产品」更易通过</p>
     </div>
   </div>
 
