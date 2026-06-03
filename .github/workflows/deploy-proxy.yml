@@ -1,0 +1,29 @@
+# 自动部署 Cloudflare Worker API 代理
+name: Deploy API Proxy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'proxy/worker.js'
+      - 'proxy/wrangler.toml'
+      - '.github/workflows/deploy-proxy.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: 'proxy'
+          command: deploy
+          secrets: |
+            DEEPSEEK_API_KEY
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}

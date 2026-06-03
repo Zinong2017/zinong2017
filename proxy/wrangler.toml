@@ -1,0 +1,4 @@
+# Zinong2017 PM Agent - Cloudflare Worker 配置
+name = "zinong2017-pm-proxy"
+main = "worker.js"
+compatibility_date = "2025-01-01"
