@@ -466,102 +466,30 @@
       return div.innerHTML;
     }
 
-    // 简易 Markdown → HTML（处理 PM 文档常用格式）
+    // Markdown → HTML（使用 marked 库，支持完整 GFM）
     function markdownToHtml(md) {
       if (!md) return '';
-      var html = md;
-
-      // 转义 HTML（但不转义已有的标签）
-      // 先处理代码块（保护起来）
-      var codeBlocks = [];
-      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function (_, lang, code) {
-        var idx = codeBlocks.length;
-        codeBlocks.push('<pre><code>' + escapeHtml(code.trim()) + '</code></pre>');
-        return '%%CODEBLOCK_' + idx + '%%';
-      });
-
-      // 行内代码
-      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-      // 标题
-      html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
-      html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-      html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-      html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-
-      // 分割线
-      html = html.replace(/^---$/gm, '<hr>');
-
-      // 粗体和斜体
-      html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-
-      // 无序列表
-      html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
-      html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
-
-      // 有序列表
-      html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-      // 避免重复包裹（简单处理：连续的 <li> 用 <ol> 包裹）
-      // 这里简化处理，有序和无序在渲染时手动调整
-
-      // 引用块
-      html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
-      // 合并连续引用
-      html = html.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
-
-      // 链接
-      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-
-      // 表格（简易处理：检测 | 开头的行）
-      var lines = html.split('\n');
-      var inTable = false;
-      var tableHtml = [];
-      var resultLines = [];
-
-      for (var i = 0; i < lines.length; i++) {
-        var line = lines[i].trim();
-        // 检测表格行
-        if (line.indexOf('|') === 0 && line.lastIndexOf('|') === line.length - 1) {
-          // 跳过分隔行
-          if (/^\|[\s\-:]+\|$/.test(line)) continue;
-          if (!inTable) {
-            inTable = true;
-            tableHtml = ['<table>'];
-          }
-          var cells = line.split('|').filter(function (c) { return c.length > 0; });
-          var isHeader = (i + 1 < lines.length && /^\|[\s\-:]+\|$/.test(lines[i + 1].trim()));
-          var tag = isHeader ? 'th' : 'td';
-          tableHtml.push('<tr>' + cells.map(function (c) {
-            return '<' + tag + '>' + c.trim() + '</' + tag + '>';
-          }).join('') + '</tr>');
-          continue;
-        } else if (inTable) {
-          inTable = false;
-          tableHtml.push('</table>');
-          resultLines.push(tableHtml.join('\n'));
-          tableHtml = [];
-        }
-        resultLines.push(line);
+      if (typeof marked !== 'undefined' && marked.parse) {
+        // 配置 marked：GitHub Flavored Markdown + 安全模式
+        marked.setOptions({
+          gfm: true,
+          breaks: true,
+          headerIds: false,
+          mangle: false
+        });
+        var html = marked.parse(md);
+        // 给链接添加 target="_blank"
+        html = html.replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ');
+        return html;
       }
-      // 收尾表格
-      if (inTable) {
-        tableHtml.push('</table>');
-        resultLines.push(tableHtml.join('\n'));
-      }
-      html = resultLines.join('\n');
-
-      // 段落：处理剩余的非 HTML 行
-      // 简化处理：不强制 <p> 包裹，让浏览器自然处理换行
-      html = html.replace(/\n\n/g, '<br><br>');
-
-      // 恢复代码块
-      html = html.replace(/%%CODEBLOCK_(\d+)%%/g, function (_, idx) {
-        return codeBlocks[parseInt(idx, 10)] || '';
-      });
-
-      return html;
+      // 降级：marked 未加载时使用简易渲染
+      return md
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
     }
 
     // 滚动到底部
