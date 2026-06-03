@@ -265,16 +265,129 @@
       return el;
     }
 
-    // ===== 添加操作按钮 =====
-    function addActions(bubbleEl, content) {
+    // ===== 多格式操作按钮 =====
+    function addMultiFormatActions(bubbleEl, content, format) {
       var actions = document.createElement('div');
       actions.className = 'chat-msg__actions';
-      actions.innerHTML = '<button class="chat-msg__action chat-msg__action--download">📥 下载 Word</button>' +
+
+      var downloadLabel, downloadFn;
+      if (format === 'ppt') {
+        downloadLabel = '📥 下载 PPT';
+        downloadFn = downloadPPT;
+      } else if (format === 'dashboard') {
+        downloadLabel = '📥 打开仪表盘';
+        downloadFn = function(c) { openDashboard(c); };
+      } else {
+        downloadLabel = '📥 下载 Word';
+        downloadFn = downloadWord;
+      }
+
+      actions.innerHTML = '<button class="chat-msg__action chat-msg__action--download">' + downloadLabel + '</button>' +
                           '<button class="chat-msg__action chat-msg__action--copy">📋 复制全文</button>';
+
       bubbleEl.parentNode.appendChild(actions);
-      actions.querySelector('.chat-msg__action--download').addEventListener('click', function () { downloadWord(content); });
+      actions.querySelector('.chat-msg__action--download').addEventListener('click', function () { downloadFn(content); });
       actions.querySelector('.chat-msg__action--copy').addEventListener('click', function () { copyText(content); });
     }
+
+    // ===== PPT 下载 =====
+    function downloadPPT(md) {
+      var bodyHtml = markdownToHtml(md);
+      // 将 ## 标题转为幻灯片分隔
+      var slides = bodyHtml.split(/<h2>(.*?)<\/h2>/);
+      var pptHtml = '';
+      var slideNum = 0;
+
+      // 封面
+      pptHtml += '<div class="slide slide--cover"><div class="slide__content"><h1>📊 演示文稿</h1><p style="color:#94A3B8">Zinong2017 PM 助手生成</p></div></div>';
+
+      for (var i = 0; i < slides.length; i++) {
+        var part = slides[i].trim();
+        if (!part) continue;
+        // 奇数索引是标题
+        if (i % 2 === 1) {
+          slideNum++;
+          var title = part;
+          var body = (slides[i + 1] || '').trim();
+          pptHtml += '<div class="slide"><div class="slide__content"><h2>' + title + '</h2>' + body + '</div></div>';
+          i++; // 跳过下一个（body）
+        }
+      }
+
+      var now = new Date();
+      var ds = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+      var html = '<html><head><meta charset="utf-8"><style>' +
+        '@page{size:screen;margin:0}body{font-family:"Microsoft YaHei",sans-serif;background:#0F172A;color:#E2E8F0;margin:0}' +
+        '.slide{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;padding:60px;box-sizing:border-box;page-break-after:always;border-bottom:1px solid #1E293B}' +
+        '.slide--cover{background:linear-gradient(135deg,#1E293B 0%,#312E81 50%,#1E293B 100%)}' +
+        '.slide__content{max-width:800px;width:100%}' +
+        'h1{font-size:48px;color:#F8FAFC;margin-bottom:16px}' +
+        'h2{font-size:32px;color:#818CF8;margin-bottom:24px;border-bottom:2px solid #6366F1;padding-bottom:12px}' +
+        'h3{font-size:22px;color:#A5B4FC;margin:16px 0 8px}' +
+        'p,li{font-size:20px;line-height:1.8;color:#CBD5E1}' +
+        'ul,ol{padding-left:28px}' +
+        'table{width:100%;border-collapse:collapse;margin:16px 0;font-size:18px}' +
+        'th,td{border:1px solid #334155;padding:12px 16px;text-align:left}' +
+        'th{background:#1E293B;color:#818CF8}' +
+        'blockquote{border-left:4px solid #6366F1;padding:12px 20px;background:#1E293B;margin:16px 0}' +
+        'code{background:#1E293B;padding:2px 8px;border-radius:4px}pre{background:#0F172A;padding:16px;border-radius:8px}' +
+        '</style></head><body>' + pptHtml +
+        '<div class="slide slide--cover"><div class="slide__content"><h2>感谢阅读</h2><p>生成自 Zinong2017 PM 助手 | ' + ds + '</p></div></div>' +
+        '</body></html>';
+
+      var blob = new Blob(['﻿' + html], { type: 'application/msword;charset=utf-8' });
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'PM演示_' + ds + '.ppt';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+    }
+
+    // ===== 仪表盘（新窗口打开） =====
+    function openDashboard(md) {
+      var bodyHtml = markdownToHtml(md);
+      var now = new Date();
+      var ds = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+
+      // 提取表格数据用于图表
+      var html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+        '<title>PM 数据仪表盘</title>' +
+        '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>' +
+        '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Inter","Noto Sans SC",sans-serif;background:#0F172A;color:#E2E8F0;padding:24px}' +
+        '.dash-header{text-align:center;margin-bottom:32px;padding:24px;background:linear-gradient(135deg,#1E293B,#312E81);border-radius:16px}' +
+        '.dash-header h1{font-size:28px;color:#F8FAFC;margin-bottom:8px}' +
+        '.dash-header p{color:#94A3B8}' +
+        '.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}' +
+        '.kpi-card{background:#1E293B;border:1px solid #334155;border-radius:12px;padding:20px;text-align:center}' +
+        '.kpi-card__value{font-size:36px;font-weight:800;color:#818CF8;margin-bottom:4px}' +
+        '.kpi-card__label{font-size:14px;color:#94A3B8}' +
+        '.chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px;margin-bottom:24px}' +
+        '.chart-box{background:#1E293B;border:1px solid #334155;border-radius:12px;padding:20px}' +
+        '.chart-box h3{color:#A5B4FC;margin-bottom:12px}' +
+        '.chart-box canvas{max-height:300px}' +
+        '.content-section{background:#1E293B;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:16px}' +
+        '.content-section h2{color:#818CF8;margin-bottom:16px;border-bottom:2px solid #6366F1;padding-bottom:8px}' +
+        '.content-section table{width:100%;border-collapse:collapse}' +
+        '.content-section th,.content-section td{border:1px solid #334155;padding:10px 14px;text-align:left}' +
+        '.content-section th{background:#0F172A;color:#818CF8}' +
+        '.dash-footer{text-align:center;color:#64748B;font-size:14px;margin-top:32px;padding-top:16px;border-top:1px solid #1E293B}' +
+        '@media(max-width:768px){.chart-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}' +
+        '</style></head><body>' +
+        '<div class="dash-header"><h1>📈 PM 数据仪表盘</h1><p>生成自 Zinong2017 PM 助手 | ' + ds + '</p></div>' +
+        '<div class="content-section">' + bodyHtml + '</div>' +
+        '<div class="dash-footer">Zinong2017 AI 分身 · 数据仅供参考</div>' +
+        // 动态初始化图表
+        '<script>document.querySelectorAll("table").forEach(function(t,i){if(i>2)return;var h=[];t.querySelectorAll("th").forEach(function(th){h.push(th.textContent)});' +
+        'var rows=[];t.querySelectorAll("tbody tr,tbody").length||t.querySelectorAll("tr").forEach(function(tr,i){if(i===0)return;var r=[];tr.querySelectorAll("td").forEach(function(td){r.push(td.textContent)});if(r.length)rows.push(r)});' +
+        'if(rows.length&&h.length){var box=document.createElement("div");box.className="chart-box";box.innerHTML="<h3>📊 数据趋势</h3><canvas id=\\"chart"+i+"\\"></canvas>";' +
+        't.parentNode.insertBefore(box,t);new Chart(document.getElementById("chart"+i),{type:"bar",data:{labels:rows.map(function(r){return r[0]}),' +
+        'datasets:[{label:h[1]||"数值",data:rows.map(function(r){return parseFloat(r[1])||0}),backgroundColor:"#818CF8",borderRadius:6}]},' +
+        'options:{responsive:true,plugins:{legend:{labels:{color:"#94A3B8"}}}}});}' +
+        '});<\/script></body></html>';
+
+      var blob = new Blob(['﻿' + html], { type: 'text/html;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    }
+
+    // ===== 原 Word 下载 =====
 
     // ===== Word 下载 =====
     function downloadWord(md) {
@@ -318,19 +431,182 @@
       toastTimer = setTimeout(function () { t.style.opacity = '0'; }, 2000);
     }
 
-    // ===== 发送消息 =====
-    async function sendMessage(text) {
-      if (!text || !text.trim() || state.isStreaming) return;
-      text = text.trim();
-      state.isStreaming = true;
+    // ===== 格式检测 =====
+    function detectFormat(text) {
+      var t = text.toLowerCase();
+      if (/ppt|演示|幻灯片|slide|presentation|提案|汇报/i.test(t)) return 'ppt';
+      if (/仪表盘|看板|dashboard|数据看板|图表|可视化|报表/i.test(t)) return 'dashboard';
+      if (/word|文档|doc|prd|报告|分析|拆解|指标|设计|撰写/i.test(t)) return 'word';
+      return null;
+    }
 
-      state.messages.push({ role: 'user', content: text });
-      addMsg('user', text, true);
+    function getFormatLabel(fmt) {
+      if (fmt === 'ppt') return 'PPT 演示文稿';
+      if (fmt === 'dashboard') return '数据仪表盘';
+      return 'Word 文档';
+    }
+
+    // ===== 格式选择器 =====
+    var pendingText = null;
+    function showFormatSelector(text) {
+      pendingText = text;
+      var existing = document.querySelector('.format-picker');
+      if (existing) existing.remove();
+
+      var picker = document.createElement('div');
+      picker.className = 'format-picker';
+      picker.innerHTML = '<p class="format-picker__q">你想要什么输出格式？</p>' +
+        '<div class="format-picker__options">' +
+        '<button class="format-picker__btn format-picker__btn--word" data-format="word">📄 Word 文档<br><small>PRD / 报告 / 文档</small></button>' +
+        '<button class="format-picker__btn format-picker__btn--ppt" data-format="ppt">📊 PPT 演示<br><small>汇报 / 提案 / 路演</small></button>' +
+        '<button class="format-picker__btn format-picker__btn--dashboard" data-format="dashboard">📈 数据仪表盘<br><small>看板 / 指标 / 可视化</small></button>' +
+        '</div>';
+
+      // 插入到工作区消息列表末尾
+      workspaceBody.appendChild(picker);
+      workspaceBody.scrollTop = workspaceBody.scrollHeight;
+
+      // 点击选择
+      picker.querySelectorAll('.format-picker__btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var fmt = btn.getAttribute('data-format');
+          picker.remove();
+          // 添加用户选择的格式标签消息
+          var label = getFormatLabel(fmt);
+          state.messages.push({ role: 'user', content: pendingText + '\n\n[输出格式: ' + label + ']' });
+          addMsg('user', pendingText + '\n\n<span style="font-size:12px;color:var(--color-purple)">📌 ' + label + '</span>', true);
+          // 发送
+          doSendMessage(pendingText, fmt);
+        });
+      });
+
+      return picker;
+    }
+
+    // 在英雄区也显示格式选择
+    function showHeroFormatSelector(text) {
+      pendingText = text;
+      var existing = document.querySelector('.format-picker--hero');
+      if (existing) existing.remove();
+
+      var picker = document.createElement('div');
+      picker.className = 'format-picker format-picker--hero';
+      picker.innerHTML = '<p class="format-picker__q">选择输出格式</p>' +
+        '<div class="format-picker__options format-picker__options--row">' +
+        '<button class="format-picker__btn format-picker__btn--word" data-format="word">📄 Word</button>' +
+        '<button class="format-picker__btn format-picker__btn--ppt" data-format="ppt">📊 PPT</button>' +
+        '<button class="format-picker__btn format-picker__btn--dashboard" data-format="dashboard">📈 仪表盘</button>' +
+        '</div>';
+
+      // 插入到 hero submit 按钮上方
+      var wrapper = $('heroInputWrapper');
+      wrapper.parentNode.insertBefore(picker, wrapper.nextSibling);
+
+      picker.querySelectorAll('.format-picker__btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var fmt = btn.getAttribute('data-format');
+          picker.remove();
+          var label = getFormatLabel(fmt);
+          var fullText = text + '\n\n[输出格式: ' + label + ']';
+          openWorkspace();
+          state.messages.push({ role: 'user', content: fullText });
+          addMsg('user', text + '\n\n<span style="font-size:12px;color:var(--color-purple)">📌 ' + label + '</span>', true);
+          doSendMessage(fullText, fmt);
+        });
+      });
+    }
+
+    // ===== 实际发送 =====
+    async function doSendMessage(text, format) {
+      state.isStreaming = true;
 
       playThinking();
 
-      var systemMsg = { role: 'system', content: getSystemPrompt() };
-      var apiMessages = [systemMsg].concat(state.messages.slice(-20));
+      // 根据格式调整 System Prompt
+      var formatInstructions = '';
+      if (format === 'ppt') {
+        formatInstructions = '\n\n## 本次输出要求：PPT 演示文稿\n' +
+          '用户需要一份 PPT 演示文稿。请按以下结构输出：\n' +
+          '- 每页用 "## 第N页：标题" 分隔\n' +
+          '- 每页包含 3-5 个要点（用列表）\n' +
+          '- 第一页是封面（标题 + 副标题 + 汇报人）\n' +
+          '- 最后一页是总结与下一步行动\n' +
+          '- 语言简洁有力，适合演讲场景\n' +
+          '- 总页数 8-15 页';
+      } else if (format === 'dashboard') {
+        formatInstructions = '\n\n## 本次输出要求：数据仪表盘\n' +
+          '用户需要一个产品/业务仪表盘。请按以下结构输出：\n' +
+          '- 顶部：仪表盘标题和核心摘要\n' +
+          '- 核心指标卡片区（3-5 个关键数字）\n' +
+          '- 趋势图表区（描述折线图/柱状图的数据和趋势）\n' +
+          '- 明细表格区（Markdown 表格列出详细数据）\n' +
+          '- 底部：洞察与建议\n' +
+          '- 所有数据用中文标注，数值合理且可溯源';
+      } else {
+        formatInstructions = '\n\n## 本次输出要求：Word 文档\n' +
+          '用户需要一份标准的 Word 文档。请按 PM 文档标准格式输出。';
+      }
+
+      var systemMsg = { role: 'system', content: getSystemPrompt() + formatInstructions };
+      // 注意：messages 已经在发送前添加了用户消息
+      var apiMessages = [systemMsg].concat(state.messages.slice(-22));
+
+      setTimeout(function () { hideThinking(); showTyping(); }, THINKING_STEPS.length * 350 + 400);
+
+      var msgEl = document.createElement('div');
+      msgEl.className = 'chat-msg chat-msg--assistant';
+      msgEl.innerHTML = '<div class="chat-msg__avatar">Z</div><div class="chat-msg__bubble" data-raw=""></div>';
+      workspaceBody.appendChild(msgEl);
+      var bubbleEl = msgEl.querySelector('.chat-msg__bubble');
+      state.currentBubble = bubbleEl;
+
+      try {
+        var resp = await callDeepSeekAPI(apiMessages);
+        if (!resp.ok) throw new Error('API 错误: ' + resp.status);
+        hideTyping();
+        var content = await handleStream(resp, bubbleEl);
+        removeCursor(bubbleEl);
+        if (content) {
+          state.messages.push({ role: 'assistant', content: content });
+          addMultiFormatActions(bubbleEl, content, format);
+          saveHistory();
+        }
+      } catch (err) {
+        hideTyping(); hideThinking();
+        if (err.name === 'AbortError') {
+          bubbleEl.innerHTML = markdownToHtml((bubbleEl.getAttribute('data-raw') || '') + '\n\n*[已停止]*');
+        } else {
+          bubbleEl.innerHTML = '<p style="color:#EF4444">请求失败: ' + escapeHtml(err.message) + '</p>';
+        }
+      } finally {
+        state.isStreaming = false; state.currentBubble = null; state.abortController = null;
+        hideTyping();
+      }
+    }
+
+    // ===== 发送入口（含格式检测） =====
+    async function sendMessage(text) {
+      if (!text || !text.trim() || state.isStreaming) return;
+      text = text.trim();
+
+      // 检测用户是否已指定格式
+      var detectedFormat = detectFormat(text);
+      if (detectedFormat) {
+        // 用户已指定格式，直接发送
+        state.messages.push({ role: 'user', content: text });
+        addMsg('user', text, true);
+        doSendMessage(text, detectedFormat);
+      } else {
+        // 未指定格式，询问用户
+        if (workspace.classList.contains('workspace--active')) {
+          state.messages.push({ role: 'user', content: text });
+          addMsg('user', text, true);
+          showFormatSelector(text);
+        } else {
+          showHeroFormatSelector(text);
+        }
+      }
+    }
 
       setTimeout(function () { hideThinking(); showTyping(); }, THINKING_STEPS.length * 350 + 400);
 

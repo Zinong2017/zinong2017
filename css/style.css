@@ -424,6 +424,36 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   transition: opacity 0.5s ease, transform 0.5s ease; }
 .js-ready .reveal.visible { opacity: 1; transform: translateY(0); }
 
+/* === 格式选择器 === */
+.format-picker {
+  max-width: 860px; width: 100%; margin: 0 auto 20px;
+  background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); padding: 24px; text-align: center;
+  animation: msg-enter 0.35s ease;
+}
+.format-picker--hero {
+  max-width: 640px; margin-top: 16px; background: rgba(255,255,255,0.02);
+}
+.format-picker__q {
+  font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 16px;
+}
+.format-picker__options {
+  display: flex; gap: 12px; justify-content: center;
+}
+.format-picker__options--row { flex-wrap: wrap; }
+.format-picker__btn {
+  flex: 1; min-width: 140px; max-width: 200px;
+  padding: 16px 14px; font-size: 15px; font-weight: 600;
+  color: var(--text-primary); background: var(--bg-card);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius);
+  cursor: pointer; transition: all var(--transition-fast); text-align: center;
+}
+.format-picker__btn small { display: block; font-size: 12px; font-weight: 400; color: var(--text-tertiary); margin-top: 4px; }
+.format-picker__btn:hover { border-color: var(--border-glow); background: var(--bg-card-hover); transform: translateY(-2px); }
+.format-picker__btn--word:hover { border-color: var(--color-blue); box-shadow: 0 0 20px rgba(59,130,246,0.2); }
+.format-picker__btn--ppt:hover { border-color: var(--color-purple); box-shadow: 0 0 20px rgba(139,92,246,0.2); }
+.format-picker__btn--dashboard:hover { border-color: var(--color-pink); box-shadow: 0 0 20px rgba(236,72,153,0.2); }
+
 /* === 响应式：平板 === */
 @media (max-width: 1023px) {
   .about__grid { grid-template-columns: 1fr; max-width: 500px; }
@@ -453,6 +483,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .skills__title { font-size: 1.5rem; margin-bottom: 32px; }
 
   .footer__links { gap: 24px; }
+  .format-picker__options { flex-direction: column; align-items: center; }
+  .format-picker__btn { max-width: 100%; width: 100%; }
 }
 
 /* === 响应式：小屏 === */
