@@ -420,12 +420,16 @@
   // PM Agent 工作台
   // ============================================
   function initPmAgent() {
-    // API 代理地址
-    // 本地开发：http://localhost:8081（先运行 python proxy/server.py）
-    // 生产部署：替换为你的 Cloudflare Worker URL
-    var PROXY_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-      ? 'http://localhost:8081'
-      : 'https://pm-proxy.zinong2017.workers.dev';
+    // ========== API 配置 ==========
+    // DeepSeek API（前端直连，无代理层）
+    var DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
+
+    // 安全提示：此 Key 会出现在前端源码中。个人站点流量小、风险可控。
+    // 如需保护 Key，请改用 Cloudflare Worker 代理（见 proxy/worker.js）
+    var DEEPSEEK_API_KEY = 'sk-6c4da4b366a840cd9168f1bbbed21f43';
+
+    // CORS 代理（当直接请求被浏览器拦截时使用）
+    var CORS_PROXY = 'https://corsproxy.io/?';
 
     // DOM 引用
     var btn = $('pmAgentBtn');
@@ -890,18 +894,49 @@
         '- 不确定时坦诚说明，并建议用户补充信息';
     }
 
-    function callDeepSeekAPI(messages, enableSearch) {
+    // 调用 DeepSeek API（直连，带 CORS 回退）
+    async function callDeepSeekAPI(messages) {
       var controller = new AbortController();
       state.abortController = controller;
 
-      return fetch(PROXY_URL, {
+      var body = JSON.stringify({
+        model: 'deepseek-chat',
+        messages: messages,
+        stream: true,
+        temperature: 0.7,
+        max_tokens: 4096
+      });
+
+      // 先尝试直连
+      try {
+        var resp = await fetch(DEEPSEEK_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + DEEPSEEK_API_KEY
+          },
+          body: body,
+          signal: controller.signal
+        });
+        if (resp.ok) return resp;
+      } catch (e) {
+        // CORS 错误或其他网络问题，尝试 CORS 代理
+        if (e.name === 'TypeError' || e.name === 'NetworkError') {
+          console.warn('[PM Agent] 直连失败，尝试 CORS 代理...');
+        } else {
+          throw e;
+        }
+      }
+
+      // 回退：通过 CORS 代理
+      return fetch(CORS_PROXY + encodeURIComponent(DEEPSEEK_API_URL), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: messages,
-          stream: true,
-          enableSearch: !!enableSearch
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + DEEPSEEK_API_KEY,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: body,
         signal: controller.signal
       });
     }
@@ -990,7 +1025,7 @@
 
     // ========== 发送消息主流程 ==========
 
-    async function sendMessage(text, enableSearch) {
+    async function sendMessage(text) {
       if (!text || !text.trim()) return;
       if (state.isStreaming) return;
 
@@ -1029,8 +1064,8 @@
       scrollToBottom();
 
       try {
-        // 调用 API
-        var response = await callDeepSeekAPI(apiMessages, enableSearch);
+        // 调用 API（直连 DeepSeek）
+        var response = await callDeepSeekAPI(apiMessages);
 
         if (!response.ok) {
           var errData;
@@ -1089,7 +1124,7 @@
           if (bubbleEl) {
             bubbleEl.innerHTML = '<p style="color:#E53E3E;">⚠️ 抱歉，请求失败：' +
               escapeHtml(err.message || '未知错误') + '</p>' +
-              '<p style="font-size:12px;color:var(--color-muted);">请检查网络连接后重试。如果问题持续，请确认 API 代理服务是否正常运行。</p>';
+              '<p style="font-size:12px;color:var(--color-muted);">请检查网络连接后重试。如果问题持续，可能是 DeepSeek API 暂时不可用。</p>';
           }
           console.error('[Zinong2017 PM Agent]', err);
         }
@@ -1168,9 +1203,7 @@
           var text = chatInput ? chatInput.value : '';
           if (text.trim()) {
             if (chatInput) chatInput.value = '';
-            // 自动判断是否需要搜索（检测关键词）
-            var needSearch = /搜索|查一|查下|最新|竞品|对比|行业|趋势|市场/i.test(text);
-            sendMessage(text, needSearch);
+            sendMessage(text);
           }
         }
       });
