@@ -283,14 +283,18 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .chat-msg__bubble a { color: var(--color-blue); text-decoration: underline; }
 
 /* 消息操作按钮 */
-.chat-msg__actions { display: flex; gap: 8px; margin-top: 12px; }
+.chat-msg__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .chat-msg__action {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 6px 14px; font-size: 13px; font-weight: 500; border-radius: var(--radius-full);
+  padding: 7px 15px; font-size: 13px; font-weight: 500; border-radius: var(--radius-full);
   cursor: pointer; transition: all var(--transition-fast);
 }
-.chat-msg__action--download { background: var(--gradient-warm); color: #fff; }
-.chat-msg__action--download:hover { box-shadow: 0 0 20px rgba(99,102,241,0.4); }
+.chat-msg__action--word { background: rgba(59,130,246,0.15); color: var(--color-blue); border: 1px solid rgba(59,130,246,0.3); }
+.chat-msg__action--word:hover { background: rgba(59,130,246,0.25); border-color: var(--color-blue); }
+.chat-msg__action--ppt { background: rgba(139,92,246,0.15); color: var(--color-purple); border: 1px solid rgba(139,92,246,0.3); }
+.chat-msg__action--ppt:hover { background: rgba(139,92,246,0.25); border-color: var(--color-purple); }
+.chat-msg__action--dashboard { background: rgba(236,72,153,0.12); color: var(--color-pink); border: 1px solid rgba(236,72,153,0.3); }
+.chat-msg__action--dashboard:hover { background: rgba(236,72,153,0.22); border-color: var(--color-pink); }
 .chat-msg__action--copy { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-subtle); }
 .chat-msg__action--copy:hover { border-color: var(--text-secondary); color: var(--text-primary); }
 

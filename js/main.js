@@ -129,24 +129,44 @@
                .replace(/\n\n/g, '<br><br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     }
 
-    // ===== 系统提示词 =====
+    // ===== 系统提示词：AI PM Agent 智能体 =====
     function getSystemPrompt() {
-      return '你是 Zinong2017 的 AI 数字分身，一名专注 AI Agent 方向的产品经理。\n\n' +
-        '## 你的 PM 技能\n' +
-        '1. **PRD 撰写**：背景与目标 → 用户故事 → 功能需求(P0/P1/P2) → 非功能需求 → 指标体系 → 排期与风险\n' +
-        '2. **竞品分析**：从功能、体验、定位、商业模式四维度对比，给出差异化建议\n' +
-        '3. **需求拆解**：用户故事 + 功能点 + 优先级(MoSCoW) + 依赖关系\n' +
-        '4. **产品方案评审**：可行性、风险、体验三角度评估，输出风险矩阵和改进建议\n' +
-        '5. **指标设计**：北极星指标 + 过程指标 + 质量指标三层体系\n' +
-        '6. **用户访谈设计**：结构化提纲 + 追问策略\n\n' +
-        '## 输出格式\n' +
-        '- 使用 Markdown 组织文档（标题层级、列表、表格）\n' +
-        '- 文档结构：标题 → 版本信息 → 正文 → 参考资料\n' +
-        '- 中文为主，专业术语可保留英文\n' +
-        '- 每个结论附带可操作的下一步建议\n\n' +
+      return '你是 Zinong2017 的 AI 数字分身，一名资深的 AI Agent 产品经理。你既是 PM 助手也是产品导师。\n\n' +
+        '## 你的角色定位\n' +
+        '你是 Zinong2017 本人（AI Agent 产品经理，产品设计专业背景）的 AI 分身。你在与访客对话，代表他的专业能力和产品理念。\n\n' +
+        '## 你的核心能力（自行判断用户需要什么）\n' +
+        '根据用户输入，你自行判断他/她需要的是：知识解答、还是文档产出、还是方案辅导。\n\n' +
+        '### 当用户问知识/方法论问题时 → 你是导师\n' +
+        '- 结构化讲解：概念 → 案例 → 实操建议\n' +
+        '- 用具体场景说明（如"假设你在设计一个客服 Agent"）\n' +
+        '- 引导用户思考更深层的问题\n' +
+        '- 如果问题模糊，先追问澄清再回答\n\n' +
+        '### 当用户要求产出文档时 → 你是 PM 助手\n' +
+        '调用以下 PM 专业技能，输出专业文档：\n\n' +
+        '1. **PRD 撰写**：背景与目标 → 用户故事(含场景) → 功能需求(P0/P1/P2 优先级) → 非功能需求 → 指标体系(北极星+过程+质量) → 排期与风险\n' +
+        '2. **竞品分析**：功能、体验、定位、商业模式四维度对比 → 差异化建议 → 行动项\n' +
+        '3. **需求拆解**：用户故事 → 功能点 → 优先级(MoSCoW) → 依赖关系\n' +
+        '4. **产品方案评审**：可行性/风险/体验三角度 → 风险矩阵 → 改进建议\n' +
+        '5. **指标设计**：北极星指标 + 过程指标 + 质量指标 → 衡量方式与目标值\n' +
+        '6. **用户访谈设计**：结构化提纲 + 追问策略 + 场景脚本\n' +
+        '7. **产品策略建议**：市场定位 → 竞争策略 → MVP 拆解 → 路线图\n' +
+        '8. **产品分析报告**：现状诊断 → 数据解读 → 改善方案 → 预期效果\n\n' +
+        '## 输出格式（你自己决定用哪种）\n' +
+        '- **知识问答**：结构化文字 + 案例 + 总结\n' +
+        '- **文档产出**：Markdown 格式，标题层级分明，含表格、列表\n' +
+        '- 文档需包含：标题 → 版本/日期 → 正文 → 附录/参考资料\n' +
+        '- 语言：中文为主，专业术语保留英文（PRD、MVP、ROI、SOP）\n' +
+        '- 每个结论附带可操作的具体建议\n\n' +
+        '## 风格要求\n' +
+        '- 专业但不装腔：用产品经理的术语但保持易懂\n' +
+        '- 实例驱动：用具体场景展开论述\n' +
+        '- 克制谦逊：承认复杂性和不确定性，不做绝对断言\n' +
+        '- 主动引导：发现用户需求不清晰时，先追问再回答\n\n' +
         '## 边界\n' +
-        '- 只回答产品/设计/Agent 相关问题\n' +
-        '- 不确定时坦诚说明，建议用户补充信息';
+        '- 只回答产品/设计/Agent/职场相关问题\n' +
+        '- 被问无关话题时，礼貌引导回 PM/Agent 方向\n' +
+        '- 不生成可执行代码，但可描述技术方案\n' +
+        '- 不确定时坦诚说"我目前没有足够案例来回答，但我们可以一起探讨"';
     }
 
     // ===== API 调用 =====
@@ -265,28 +285,20 @@
       return el;
     }
 
-    // ===== 多格式操作按钮 =====
-    function addMultiFormatActions(bubbleEl, content, format) {
+    // ===== 全格式操作按钮（每次回复都显示） =====
+    function addAllFormatActions(bubbleEl, content) {
       var actions = document.createElement('div');
       actions.className = 'chat-msg__actions';
-
-      var downloadLabel, downloadFn;
-      if (format === 'ppt') {
-        downloadLabel = '📥 下载 PPT';
-        downloadFn = downloadPPT;
-      } else if (format === 'dashboard') {
-        downloadLabel = '📥 打开仪表盘';
-        downloadFn = function(c) { openDashboard(c); };
-      } else {
-        downloadLabel = '📥 下载 Word';
-        downloadFn = downloadWord;
-      }
-
-      actions.innerHTML = '<button class="chat-msg__action chat-msg__action--download">' + downloadLabel + '</button>' +
-                          '<button class="chat-msg__action chat-msg__action--copy">📋 复制全文</button>';
+      actions.innerHTML =
+        '<button class="chat-msg__action chat-msg__action--word">📄 下载 Word</button>' +
+        '<button class="chat-msg__action chat-msg__action--ppt">📊 下载 PPT</button>' +
+        '<button class="chat-msg__action chat-msg__action--dashboard">📈 打开仪表盘</button>' +
+        '<button class="chat-msg__action chat-msg__action--copy">📋 复制全文</button>';
 
       bubbleEl.parentNode.appendChild(actions);
-      actions.querySelector('.chat-msg__action--download').addEventListener('click', function () { downloadFn(content); });
+      actions.querySelector('.chat-msg__action--word').addEventListener('click', function () { downloadWord(content); });
+      actions.querySelector('.chat-msg__action--ppt').addEventListener('click', function () { downloadPPT(content); });
+      actions.querySelector('.chat-msg__action--dashboard').addEventListener('click', function () { openDashboard(content); });
       actions.querySelector('.chat-msg__action--copy').addEventListener('click', function () { copyText(content); });
     }
 
@@ -431,124 +443,21 @@
       toastTimer = setTimeout(function () { t.style.opacity = '0'; }, 2000);
     }
 
-    // ===== 格式检测 =====
-    function detectFormat(text) {
-      var t = text.toLowerCase();
-      if (/ppt|演示|幻灯片|slide|presentation|提案|汇报/i.test(t)) return 'ppt';
-      if (/仪表盘|看板|dashboard|数据看板|图表|可视化|报表/i.test(t)) return 'dashboard';
-      if (/word|文档|doc|prd|报告|分析|拆解|指标|设计|撰写/i.test(t)) return 'word';
-      return null;
-    }
-
-    function getFormatLabel(fmt) {
-      if (fmt === 'ppt') return 'PPT 演示文稿';
-      if (fmt === 'dashboard') return '数据仪表盘';
-      return 'Word 文档';
-    }
-
-    // ===== 格式选择器 =====
-    var pendingText = null;
-    function showFormatSelector(text) {
-      pendingText = text;
-      var existing = document.querySelector('.format-picker');
-      if (existing) existing.remove();
-
-      var picker = document.createElement('div');
-      picker.className = 'format-picker';
-      picker.innerHTML = '<p class="format-picker__q">你想要什么输出格式？</p>' +
-        '<div class="format-picker__options">' +
-        '<button class="format-picker__btn format-picker__btn--word" data-format="word">📄 Word 文档<br><small>PRD / 报告 / 文档</small></button>' +
-        '<button class="format-picker__btn format-picker__btn--ppt" data-format="ppt">📊 PPT 演示<br><small>汇报 / 提案 / 路演</small></button>' +
-        '<button class="format-picker__btn format-picker__btn--dashboard" data-format="dashboard">📈 数据仪表盘<br><small>看板 / 指标 / 可视化</small></button>' +
-        '</div>';
-
-      // 插入到工作区消息列表末尾
-      workspaceBody.appendChild(picker);
-      workspaceBody.scrollTop = workspaceBody.scrollHeight;
-
-      // 点击选择
-      picker.querySelectorAll('.format-picker__btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var fmt = btn.getAttribute('data-format');
-          picker.remove();
-          // 添加用户选择的格式标签消息
-          var label = getFormatLabel(fmt);
-          state.messages.push({ role: 'user', content: pendingText + '\n\n[输出格式: ' + label + ']' });
-          addMsg('user', pendingText + '\n\n<span style="font-size:12px;color:var(--color-purple)">📌 ' + label + '</span>', true);
-          // 发送
-          doSendMessage(pendingText, fmt);
-        });
-      });
-
-      return picker;
-    }
-
-    // 在英雄区也显示格式选择
-    function showHeroFormatSelector(text) {
-      pendingText = text;
-      var existing = document.querySelector('.format-picker--hero');
-      if (existing) existing.remove();
-
-      var picker = document.createElement('div');
-      picker.className = 'format-picker format-picker--hero';
-      picker.innerHTML = '<p class="format-picker__q">选择输出格式</p>' +
-        '<div class="format-picker__options format-picker__options--row">' +
-        '<button class="format-picker__btn format-picker__btn--word" data-format="word">📄 Word</button>' +
-        '<button class="format-picker__btn format-picker__btn--ppt" data-format="ppt">📊 PPT</button>' +
-        '<button class="format-picker__btn format-picker__btn--dashboard" data-format="dashboard">📈 仪表盘</button>' +
-        '</div>';
-
-      // 插入到 hero submit 按钮上方
-      var wrapper = $('heroInputWrapper');
-      wrapper.parentNode.insertBefore(picker, wrapper.nextSibling);
-
-      picker.querySelectorAll('.format-picker__btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var fmt = btn.getAttribute('data-format');
-          picker.remove();
-          var label = getFormatLabel(fmt);
-          var fullText = text + '\n\n[输出格式: ' + label + ']';
-          openWorkspace();
-          state.messages.push({ role: 'user', content: fullText });
-          addMsg('user', text + '\n\n<span style="font-size:12px;color:var(--color-purple)">📌 ' + label + '</span>', true);
-          doSendMessage(fullText, fmt);
-        });
-      });
-    }
-
-    // ===== 实际发送 =====
-    async function doSendMessage(text, format) {
+    // ===== 发送消息 =====
+    async function sendMessage(text) {
+      if (!text || !text.trim() || state.isStreaming) return;
+      text = text.trim();
       state.isStreaming = true;
 
+      // 添加用户消息
+      state.messages.push({ role: 'user', content: text });
+      addMsg('user', text, true);
+
+      // 思考动画
       playThinking();
 
-      // 根据格式调整 System Prompt
-      var formatInstructions = '';
-      if (format === 'ppt') {
-        formatInstructions = '\n\n## 本次输出要求：PPT 演示文稿\n' +
-          '用户需要一份 PPT 演示文稿。请按以下结构输出：\n' +
-          '- 每页用 "## 第N页：标题" 分隔\n' +
-          '- 每页包含 3-5 个要点（用列表）\n' +
-          '- 第一页是封面（标题 + 副标题 + 汇报人）\n' +
-          '- 最后一页是总结与下一步行动\n' +
-          '- 语言简洁有力，适合演讲场景\n' +
-          '- 总页数 8-15 页';
-      } else if (format === 'dashboard') {
-        formatInstructions = '\n\n## 本次输出要求：数据仪表盘\n' +
-          '用户需要一个产品/业务仪表盘。请按以下结构输出：\n' +
-          '- 顶部：仪表盘标题和核心摘要\n' +
-          '- 核心指标卡片区（3-5 个关键数字）\n' +
-          '- 趋势图表区（描述折线图/柱状图的数据和趋势）\n' +
-          '- 明细表格区（Markdown 表格列出详细数据）\n' +
-          '- 底部：洞察与建议\n' +
-          '- 所有数据用中文标注，数值合理且可溯源';
-      } else {
-        formatInstructions = '\n\n## 本次输出要求：Word 文档\n' +
-          '用户需要一份标准的 Word 文档。请按 PM 文档标准格式输出。';
-      }
-
-      var systemMsg = { role: 'system', content: getSystemPrompt() + formatInstructions };
-      // 注意：messages 已经在发送前添加了用户消息
+      // 构建 API 消息（AI 自行判断用户意图）
+      var systemMsg = { role: 'system', content: getSystemPrompt() };
       var apiMessages = [systemMsg].concat(state.messages.slice(-22));
 
       setTimeout(function () { hideThinking(); showTyping(); }, THINKING_STEPS.length * 350 + 400);
@@ -568,7 +477,8 @@
         removeCursor(bubbleEl);
         if (content) {
           state.messages.push({ role: 'assistant', content: content });
-          addMultiFormatActions(bubbleEl, content, format);
+          // 总是显示三种格式下载选项 + 复制，让用户自由选择
+          addAllFormatActions(bubbleEl, content);
           saveHistory();
         }
       } catch (err) {
@@ -581,30 +491,6 @@
       } finally {
         state.isStreaming = false; state.currentBubble = null; state.abortController = null;
         hideTyping();
-      }
-    }
-
-    // ===== 发送入口（含格式检测） =====
-    async function sendMessage(text) {
-      if (!text || !text.trim() || state.isStreaming) return;
-      text = text.trim();
-
-      // 检测用户是否已指定格式
-      var detectedFormat = detectFormat(text);
-      if (detectedFormat) {
-        // 用户已指定格式，直接发送
-        state.messages.push({ role: 'user', content: text });
-        addMsg('user', text, true);
-        doSendMessage(text, detectedFormat);
-      } else {
-        // 未指定格式，询问用户
-        if (workspace.classList.contains('workspace--active')) {
-          state.messages.push({ role: 'user', content: text });
-          addMsg('user', text, true);
-          showFormatSelector(text);
-        } else {
-          showHeroFormatSelector(text);
-        }
       }
     }
 
