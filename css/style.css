@@ -186,6 +186,27 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   color: var(--text-primary); border-color: var(--border-glow);
   background: var(--bg-card-hover); transform: translateY(-2px);
 }
+.hero__tag--active { color: var(--text-primary); border-color: var(--color-purple); background: rgba(139,92,246,0.12); }
+
+/* 英雄区技能子菜单 */
+.hero__domain-skills {
+  width: 100%; max-width: 640px; margin-bottom: 32px;
+  background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); padding: 16px; animation: msg-enter 0.25s ease;
+}
+.hero__domain-skills-inner {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;
+}
+.hero__domain-skill {
+  text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 500;
+  color: var(--text-secondary); background: transparent;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.hero__domain-skill:hover {
+  background: var(--bg-card-hover); color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
 
 /* 滚动提示 */
 .hero__scroll-hint {
@@ -463,6 +484,35 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .format-picker__btn--word:hover { border-color: var(--color-blue); box-shadow: 0 0 20px rgba(59,130,246,0.2); }
 .format-picker__btn--ppt:hover { border-color: var(--color-purple); box-shadow: 0 0 20px rgba(139,92,246,0.2); }
 .format-picker__btn--dashboard:hover { border-color: var(--color-pink); box-shadow: 0 0 20px rgba(236,72,153,0.2); }
+
+/* === 工作流进度条 === */
+.workflow-progress {
+  max-width: 860px; width: 100%; margin: 0 auto 16px;
+  background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius); padding: 14px 18px;
+}
+.workflow-progress__bar {
+  height: 3px; background: rgba(255,255,255,0.06); border-radius: 3px; margin-bottom: 10px; overflow: hidden;
+}
+.workflow-progress__fill {
+  height: 100%; background: var(--gradient-brand); border-radius: 3px;
+  transition: width 0.5s var(--ease-out);
+}
+.workflow-progress__steps {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.workflow-progress__step {
+  font-size: 11px; color: var(--text-tertiary); white-space: nowrap;
+}
+.workflow-progress__step::after { content: ' →'; color: var(--text-tertiary); margin-left: 4px; }
+.workflow-progress__step:last-child::after { content: ''; }
+.workflow-progress__step--current { color: var(--color-purple); font-weight: 600; }
+.workflow-progress__step--done { color: var(--color-success); }
+.workflow-progress__cancel {
+  margin-left: auto; font-size: 11px; color: var(--text-tertiary); padding: 2px 8px;
+  border-radius: var(--radius-sm); transition: all var(--transition-fast); flex-shrink: 0;
+}
+.workflow-progress__cancel:hover { color: var(--color-error); background: rgba(239,68,68,0.1); }
 
 /* === 侧边栏 === */
 .workspace__sidebar {

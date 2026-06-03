@@ -89,11 +89,19 @@
         </div>
 
         <!-- 技能标签 -->
-        <div class="hero__tags">
-          <button type="button" class="hero__tag" data-prompt="帮我写一份 AI 产品的 PRD 文档。产品方向你根据当前 AI Agent 热点自行推荐。">📝 帮我写 PRD</button>
-          <button type="button" class="hero__tag" data-prompt="请对主流 AI Agent 平台做一份竞品分析，对比功能、体验、定位和商业模式。">🔍 竞品分析</button>
-          <button type="button" class="hero__tag" data-prompt="帮我设计一套 AI 产品核心指标体系，包括北极星指标、过程指标和质量指标。">📊 指标设计</button>
-          <button type="button" class="hero__tag" data-prompt="请把我的产品需求拆解成可执行的开发任务，包括用户故事、功能点、优先级和依赖关系。">🧩 需求拆解</button>
+        <div class="hero__tags" id="heroTags">
+          <button type="button" class="hero__tag" data-domain="discovery">🔍 产品发现</button>
+          <button type="button" class="hero__tag" data-domain="strategy">🎯 产品策略</button>
+          <button type="button" class="hero__tag" data-domain="execution">⚡ 产品执行</button>
+          <button type="button" class="hero__tag" data-domain="research">📊 市场研究</button>
+          <button type="button" class="hero__tag" data-domain="analytics">📈 数据分析</button>
+          <button type="button" class="hero__tag" data-domain="gtm">🚀 市场进入</button>
+          <button type="button" class="hero__tag" data-domain="marketing">📣 营销增长</button>
+          <button type="button" class="hero__tag" data-domain="toolkit">🧰 PM 工具箱</button>
+        </div>
+        <!-- 技能子菜单 -->
+        <div class="hero__domain-skills" id="heroDomainSkills" hidden>
+          <div class="hero__domain-skills-inner" id="heroDomainSkillsInner"></div>
         </div>
 
         <!-- 滚动提示 -->

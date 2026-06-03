@@ -121,7 +121,8 @@
       isStreaming: false,
       abortController: null,
       currentBubble: null,
-      activeSkill: null       // 当前激活的技能 { domain, key, prompt }
+      activeSkill: null,      // 当前激活的技能 { domain, key, prompt }
+      workflow: null           // 当前工作流 { name, steps[], currentStep, domain }
     };
 
     // ===== Markdown 渲染 =====
@@ -494,6 +495,10 @@
           // 总是显示三种格式下载选项 + 复制，让用户自由选择
           addAllFormatActions(bubbleEl, content);
           saveHistory();
+          // 检查是否在工作流中 → 自动进入下一步
+          if (state.workflow) {
+            setTimeout(function () { advanceWorkflow(); }, 1500);
+          }
         }
       } catch (err) {
         hideTyping(); hideThinking();
@@ -629,29 +634,26 @@
 
     function executeCommand(key, cmd) {
       hideCommands();
-      // 获工作区以确保可见
       if (!workspace.classList.contains('workspace--active')) openWorkspace();
 
       if (cmd.flow) {
-        // 链式工作流：使用第一个技能的 prompt 作为起点
-        var firstSkillKey = cmd.flow[0];
-        var firstDomain = cmd.domain;
-        // 在 PM_SKILLS 中查找
-        var skillData = null;
-        Object.keys(PM_SKILLS).forEach(function (dk) {
-          if (PM_SKILLS[dk].skills[firstSkillKey]) {
-            skillData = PM_SKILLS[dk].skills[firstSkillKey];
-            firstDomain = dk;
-          }
+        // 构建工作流步骤
+        var steps = [];
+        cmd.flow.forEach(function (skillKey) {
+          var found = null, foundDomain = null;
+          Object.keys(PM_SKILLS).forEach(function (dk) {
+            if (PM_SKILLS[dk].skills[skillKey]) {
+              found = PM_SKILLS[dk].skills[skillKey]; foundDomain = dk;
+            }
+          });
+          if (found) steps.push({ domain: foundDomain, key: skillKey, name: found.name, icon: found.icon, prompt: found.prompt });
+          else steps.push({ domain: cmd.domain, key: skillKey, name: skillKey, icon: '📋', prompt: skillKey });
         });
-        if (skillData) {
-          state.activeSkill = { domain: firstDomain, key: firstSkillKey, prompt: skillData.prompt, flow: cmd.flow };
-          workspaceInput.value = skillData.prompt;
-        } else {
-          workspaceInput.value = key + ' — 开始完整工作流程';
-        }
+        state.workflow = { name: cmd.name, steps: steps, currentStep: 0, domain: cmd.domain };
+        state.activeSkill = { domain: steps[0].domain, key: steps[0].key, prompt: steps[0].prompt };
+        workspaceInput.value = steps[0].prompt;
+        showWorkflowProgress();
       } else if (cmd.skill) {
-        // 查找技能
         var s = null, d = null;
         Object.keys(PM_SKILLS).forEach(function (dk) {
           if (PM_SKILLS[dk].skills[cmd.skill]) { s = PM_SKILLS[dk].skills[cmd.skill]; d = dk; }
@@ -668,6 +670,74 @@
       workspaceInput.style.height = 'auto';
       workspaceInput.style.height = Math.min(workspaceInput.scrollHeight, 120) + 'px';
       workspaceInput.focus();
+    }
+
+    // ===== 工作流进度 =====
+    function showWorkflowProgress() {
+      var wf = state.workflow;
+      if (!wf) return;
+      var existing = document.querySelector('.workflow-progress');
+      if (existing) existing.remove();
+
+      var bar = document.createElement('div');
+      bar.className = 'workflow-progress';
+      var html = '<div class="workflow-progress__bar"><div class="workflow-progress__fill" style="width:' +
+        ((wf.currentStep / wf.steps.length) * 100) + '%"></div></div>';
+      html += '<div class="workflow-progress__steps">';
+      wf.steps.forEach(function (s, i) {
+        var cls = i < wf.currentStep ? 'done' : (i === wf.currentStep ? 'current' : '');
+        html += '<span class="workflow-progress__step workflow-progress__step--' + cls + '">' +
+          s.icon + ' ' + s.name + '</span>';
+      });
+      html += '<button class="workflow-progress__cancel" title="停止工作流">✕ 停止</button>';
+      html += '</div>';
+      bar.innerHTML = html;
+      bar.querySelector('.workflow-progress__cancel').addEventListener('click', function () {
+        state.workflow = null;
+        state.activeSkill = null;
+        bar.innerHTML = '<div style="text-align:center;color:var(--text-tertiary);padding:8px;font-size:13px">工作流已停止</div>';
+        setTimeout(function () { if (bar.parentNode) bar.remove(); }, 2000);
+      });
+      workspaceBody.insertBefore(bar, workspaceBody.firstChild);
+    }
+
+    function updateWorkflowProgress() {
+      var wf = state.workflow;
+      if (!wf) return;
+      var fill = document.querySelector('.workflow-progress__fill');
+      if (fill) fill.style.width = ((wf.currentStep / wf.steps.length) * 100) + '%';
+      var steps = document.querySelectorAll('.workflow-progress__step');
+      steps.forEach(function (s, i) {
+        s.className = 'workflow-progress__step workflow-progress__step--' +
+          (i < wf.currentStep ? 'done' : (i === wf.currentStep ? 'current' : ''));
+      });
+    }
+
+    function advanceWorkflow() {
+      var wf = state.workflow;
+      if (!wf) return;
+      wf.currentStep++;
+      if (wf.currentStep >= wf.steps.length) {
+        // 工作流完成
+        var bar = document.querySelector('.workflow-progress');
+        if (bar) {
+          bar.innerHTML = '<div style="text-align:center;color:var(--color-success);padding:8px;font-size:14px">✅ ' +
+            wf.name + ' — 全部步骤完成</div>';
+          setTimeout(function () { if (bar.parentNode) bar.remove(); }, 5000);
+        }
+        state.workflow = null;
+        state.activeSkill = null;
+        return;
+      }
+      // 进入下一步
+      var step = wf.steps[wf.currentStep];
+      state.activeSkill = { domain: step.domain, key: step.key, prompt: step.prompt };
+      updateWorkflowProgress();
+
+      // 自动发送下一步的提示词
+      var nextPrompt = '【工作流步骤 ' + (wf.currentStep + 1) + '/' + wf.steps.length + '：' + step.name + '】\n\n' + step.prompt;
+      workspaceInput.value = '';
+      sendMessage(nextPrompt);
     }
 
     // ===== 事件绑定 =====
@@ -691,11 +761,42 @@
       heroInput.style.height = Math.min(heroInput.scrollHeight, 160) + 'px';
     });
 
-    // 技能标签
+    // 英雄区域标签 — 显示该域技能
+    var heroDomainSkills = $('heroDomainSkills');
+    var heroDomainSkillsInner = $('heroDomainSkillsInner');
     heroTags.forEach(function (tag) {
       tag.addEventListener('click', function () {
-        var prompt = tag.getAttribute('data-prompt');
-        if (prompt) { heroInput.value = prompt; heroInput.style.height = 'auto'; heroInput.style.height = Math.min(heroInput.scrollHeight, 160) + 'px'; heroInput.focus(); }
+        var domainKey = tag.getAttribute('data-domain');
+        if (!domainKey || !PM_SKILLS || !PM_SKILLS[domainKey]) return;
+        // 切换 active 状态
+        heroTags.forEach(function (t) { t.classList.remove('hero__tag--active'); });
+        if (heroDomainSkills && heroDomainSkillsInner) {
+          if (heroDomainSkills.getAttribute('data-active') === domainKey) {
+            heroDomainSkills.hidden = true;
+            heroDomainSkills.removeAttribute('data-active');
+            return;
+          }
+          heroDomainSkills.hidden = false;
+          heroDomainSkills.setAttribute('data-active', domainKey);
+          tag.classList.add('hero__tag--active');
+          var domain = PM_SKILLS[domainKey];
+          heroDomainSkillsInner.innerHTML = '';
+          Object.keys(domain.skills).forEach(function (sk) {
+            var skill = domain.skills[sk];
+            var btn = document.createElement('button');
+            btn.className = 'hero__domain-skill';
+            btn.textContent = skill.icon + ' ' + skill.name;
+            btn.addEventListener('click', function (e) {
+              e.stopPropagation();
+              heroInput.value = skill.prompt;
+              heroInput.style.height = 'auto';
+              heroInput.style.height = Math.min(heroInput.scrollHeight, 160) + 'px';
+              heroInput.focus();
+              heroDomainSkills.hidden = true;
+            });
+            heroDomainSkillsInner.appendChild(btn);
+          });
+        }
       });
     });
 
