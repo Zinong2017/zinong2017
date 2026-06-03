@@ -327,6 +327,49 @@ var PM_SKILLS = {
   }
 };
 
+  /* ================================================================
+     9. 导师模式 mentor
+     ================================================================ */
+  mentor: {
+    name: 'PM 导师',
+    icon: '🎓',
+    skills: {
+      'positioning-workshop': {
+        name: '定位工作坊', icon: '📍', interactive: true,
+        prompt: '请引导我完成一次产品定位工作坊。分 5 步：1) 帮我说清目标用户是谁 2) 分析竞品定位 3) 定义差异化价值 4) 撰写定位陈述 5) 验证定位是否合理。每次只问一个问题，等我回答后再继续。'
+      },
+      'prioritization-advisor': {
+        name: '优先级顾问', icon: '📊', interactive: true,
+        prompt: '请帮我选择合适的需求优先级框架。先问我 3-5 个问题了解我的产品阶段、团队规模、数据可用性，然后推荐 RICE/ICE/Kano/MoSCoW 中最合适的框架，并引导我完成排序。'
+      },
+      'problem-framing': {
+        name: '问题框定画布', icon: '🖼️', interactive: true,
+        prompt: '请引导我完成 MITRE 问题框定三步法：1) 向内看（我们已知什么、未知什么） 2) 向外看（用户真正的问题是什么） 3) 重新定义（用新视角框定问题）。每次一步，等我回答再继续。'
+      },
+      'discovery-interview-prep': {
+        name: '访谈准备', icon: '🎤', interactive: true,
+        prompt: '请帮我准备一场用户访谈。逐步引导：1) 确定访谈目标 2) 选择受访者画像 3) 设计 5-8 个核心问题 4) 制定追问策略 5) 准备开场白和结束语。每次只问一个方面。'
+      },
+      'career-coach': {
+        name: 'PM 职业教练', icon: '🧭', interactive: true,
+        prompt: '请作为 PM 职业导师，和我聊聊职业发展。先了解我的：经验年限、当前角色、行业领域、困惑或目标。然后给出针对性的建议，包括：能力提升方向、下一步职业选择、需要积累的项目经验。'
+      },
+      'mock-interview': {
+        name: '模拟面试', icon: '💬', interactive: true,
+        prompt: '请模拟一次 PM 面试。先问我是哪个级别（初级/高级/总监），然后按该级别的标准，依次问：产品感问题、数据分析、技术理解、行为面试题。每题后给出反馈和改进建议。'
+      }
+    },
+    commands: {
+      '/workshop-positioning': { name: '定位工作坊', desc: '引导式定位定义', skill: 'positioning-workshop', mentor: true },
+      '/prioritize': { name: '优先级顾问', desc: '推荐最佳框架', skill: 'prioritization-advisor', mentor: true },
+      '/frame-problem': { name: '问题框定', desc: 'MITRE 三步法', skill: 'problem-framing', mentor: true },
+      '/prep-interview': { name: '访谈准备', desc: '用户访谈引导', skill: 'discovery-interview-prep', mentor: true },
+      '/career-coach': { name: '职业教练', desc: 'PM 职业指导', skill: 'career-coach', mentor: true },
+      '/mock-interview': { name: '模拟面试', desc: 'PM 面试练习', skill: 'mock-interview', mentor: true }
+    }
+  }
+};
+
 // ===== 命令检索 =====
 var PM_COMMANDS = {};
 (function buildCommands() {

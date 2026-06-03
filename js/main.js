@@ -292,6 +292,15 @@
       return el;
     }
 
+    // ===== 仅复制按钮（导师模式） =====
+    function addCopyOnlyAction(bubbleEl, content) {
+      var actions = document.createElement('div');
+      actions.className = 'chat-msg__actions';
+      actions.innerHTML = '<button class="chat-msg__action chat-msg__action--copy">📋 复制对话</button>';
+      bubbleEl.parentNode.appendChild(actions);
+      actions.querySelector('.chat-msg__action--copy').addEventListener('click', function () { copyText(content); });
+    }
+
     // ===== 全格式操作按钮（每次回复都显示） =====
     function addAllFormatActions(bubbleEl, content) {
       var actions = document.createElement('div');
@@ -468,9 +477,25 @@
       var skillContext = '';
       if (state.activeSkill) {
         var s = state.activeSkill;
-        skillContext = '\n\n## 当前激活的 PM 技能\n' +
-          '用户正在使用 [' + s.key + '] 技能。请按照该技能的专业方法论和模板来组织输出。' +
-          '但这不限制你结合其他 PM 知识来丰富回答。';
+        // 检查是否为交互式/导师模式技能
+        var isInteractive = false;
+        var activeDomain = PM_SKILLS[s.domain];
+        if (activeDomain && activeDomain.skills[s.key]) {
+          isInteractive = activeDomain.skills[s.key].interactive;
+        }
+        if (isInteractive) {
+          skillContext = '\n\n## 当前模式：🎓 导师引导\n' +
+            '你正在以导师身份引导用户。请遵循以下规则：\n' +
+            '- 每次只问一个问题或引导一个步骤，等用户回答后再继续\n' +
+            '- 用鼓励、建设性的语气\n' +
+            '- 根据用户回答的质量决定是深入追问还是进入下一步\n' +
+            '- 最后给出结构化总结\n' +
+            '- 如果用户卡住了，提供提示或示例';
+        } else {
+          skillContext = '\n\n## 当前激活的 PM 技能\n' +
+            '用户正在使用 [' + s.key + '] 技能。请按照该技能的专业方法论和模板来组织输出。' +
+            '但这不限制你结合其他 PM 知识来丰富回答。';
+        }
       }
       var systemMsg = { role: 'system', content: basePrompt + skillContext };
       var apiMessages = [systemMsg].concat(state.messages.slice(-22));
@@ -492,11 +517,22 @@
         removeCursor(bubbleEl);
         if (content) {
           state.messages.push({ role: 'assistant', content: content });
-          // 总是显示三种格式下载选项 + 复制，让用户自由选择
-          addAllFormatActions(bubbleEl, content);
+          // 导师模式只显示复制按钮，普通模式显示全部下载选项
+          var isMentor = false;
+          if (state.activeSkill) {
+            var ad = PM_SKILLS[state.activeSkill.domain];
+            if (ad && ad.skills[state.activeSkill.key] && ad.skills[state.activeSkill.key].interactive) {
+              isMentor = true;
+            }
+          }
+          if (isMentor) {
+            addCopyOnlyAction(bubbleEl, content);
+          } else {
+            addAllFormatActions(bubbleEl, content);
+          }
           saveHistory();
-          // 检查是否在工作流中 → 自动进入下一步
-          if (state.workflow) {
+          // 工作流自动下一步（导师模式下不自动推进）
+          if (state.workflow && !isMentor) {
             setTimeout(function () { advanceWorkflow(); }, 1500);
           }
         }
