@@ -107,6 +107,11 @@
     var workspaceThinkingBody = $('workspaceThinkingBody');
     var workspaceThinkingToggle = $('workspaceThinkingToggle');
     var workspaceTyping = $('workspaceTyping');
+    var workspaceSidebar = $('workspaceSidebar');
+    var sidebarNav = $('sidebarNav');
+    var sidebarSearch = $('sidebarSearch');
+    var cmdPopup = $('cmdPopup');
+    var cmdPopupList = $('cmdPopupList');
 
     if (!heroInput || !workspace) return;
 
@@ -115,7 +120,8 @@
       messages: [],
       isStreaming: false,
       abortController: null,
-      currentBubble: null
+      currentBubble: null,
+      activeSkill: null       // 当前激活的技能 { domain, key, prompt }
     };
 
     // ===== Markdown 渲染 =====
@@ -456,8 +462,16 @@
       // 思考动画
       playThinking();
 
-      // 构建 API 消息（AI 自行判断用户意图）
-      var systemMsg = { role: 'system', content: getSystemPrompt() };
+      // 构建动态 System Prompt
+      var basePrompt = getSystemPrompt();
+      var skillContext = '';
+      if (state.activeSkill) {
+        var s = state.activeSkill;
+        skillContext = '\n\n## 当前激活的 PM 技能\n' +
+          '用户正在使用 [' + s.key + '] 技能。请按照该技能的专业方法论和模板来组织输出。' +
+          '但这不限制你结合其他 PM 知识来丰富回答。';
+      }
+      var systemMsg = { role: 'system', content: basePrompt + skillContext };
       var apiMessages = [systemMsg].concat(state.messages.slice(-22));
 
       setTimeout(function () { hideThinking(); showTyping(); }, THINKING_STEPS.length * 350 + 400);
@@ -519,6 +533,143 @@
       heroInput.focus();
     }
 
+    // ===== 技能侧边栏 =====
+    function initSkillSidebar() {
+      if (!sidebarNav || !PM_SKILLS) return;
+
+      Object.keys(PM_SKILLS).forEach(function (domainKey) {
+        var domain = PM_SKILLS[domainKey];
+
+        var domainEl = document.createElement('div');
+        domainEl.className = 'sidebar__domain sidebar__domain--open';
+        domainEl.innerHTML = '<button class="sidebar__domain-toggle">' + domain.icon + ' ' + domain.name + '</button>' +
+          '<div class="sidebar__domain-skills"></div>';
+
+        var skillsEl = domainEl.querySelector('.sidebar__domain-skills');
+        Object.keys(domain.skills).forEach(function (skillKey) {
+          var skill = domain.skills[skillKey];
+          var btn = document.createElement('button');
+          btn.className = 'sidebar__skill';
+          btn.textContent = skill.icon + ' ' + skill.name;
+          btn.addEventListener('click', function () {
+            // 选中技能
+            state.activeSkill = { domain: domainKey, key: skillKey, prompt: skill.prompt };
+            domainEl.querySelectorAll('.sidebar__skill').forEach(function (b) { b.classList.remove('sidebar__skill--active'); });
+            btn.classList.add('sidebar__skill--active');
+            // 填入工作区输入框
+            workspaceInput.value = skill.prompt;
+            workspaceInput.style.height = 'auto';
+            workspaceInput.style.height = Math.min(workspaceInput.scrollHeight, 120) + 'px';
+            workspaceInput.focus();
+          });
+          skillsEl.appendChild(btn);
+        });
+
+        // 折叠/展开
+        domainEl.querySelector('.sidebar__domain-toggle').addEventListener('click', function () {
+          domainEl.classList.toggle('sidebar__domain--open');
+        });
+
+        sidebarNav.appendChild(domainEl);
+      });
+
+      // 搜索
+      if (sidebarSearch) {
+        sidebarSearch.addEventListener('input', function () {
+          var q = sidebarSearch.value.trim().toLowerCase();
+          sidebarNav.querySelectorAll('.sidebar__domain').forEach(function (d) {
+            if (!q) { d.style.display = ''; return; }
+            var hasMatch = false;
+            d.querySelectorAll('.sidebar__skill').forEach(function (s) {
+              if (s.textContent.toLowerCase().indexOf(q) >= 0) { s.style.display = ''; hasMatch = true; }
+              else { s.style.display = 'none'; }
+            });
+            d.style.display = hasMatch ? '' : 'none';
+            if (hasMatch) d.classList.add('sidebar__domain--open');
+          });
+        });
+      }
+    }
+
+    // ===== 斜杠命令 =====
+    var cmdIndex = -1;
+    function showCommands(query) {
+      if (!cmdPopup || !cmdPopupList) return;
+      var results = searchCommands(query);
+      if (!results.length) { cmdPopup.hidden = true; return; }
+      cmdPopup.hidden = false;
+      cmdIndex = -1;
+      cmdPopupList.innerHTML = '';
+      results.forEach(function (r, i) {
+        var item = document.createElement('button');
+        item.className = 'cmd-popup__item';
+        item.innerHTML = '<span class="cmd-popup__item-key">' + r.key + '</span>' +
+                         '<span>' + r.cmd.name + '</span>' +
+                         '<span class="cmd-popup__item-desc">' + (r.cmd.desc || '') + '</span>';
+        item.addEventListener('click', function () {
+          executeCommand(r.key, r.cmd);
+        });
+        cmdPopupList.appendChild(item);
+      });
+    }
+    function hideCommands() { if (cmdPopup) cmdPopup.hidden = true; cmdIndex = -1; }
+    function navigateCommands(dir) {
+      var items = cmdPopupList.querySelectorAll('.cmd-popup__item');
+      if (!items.length) return;
+      if (cmdIndex >= 0) items[cmdIndex].classList.remove('cmd-popup__item--active');
+      cmdIndex += dir;
+      if (cmdIndex >= items.length) cmdIndex = 0;
+      if (cmdIndex < 0) cmdIndex = items.length - 1;
+      items[cmdIndex].classList.add('cmd-popup__item--active');
+    }
+    function selectCommand() {
+      var active = cmdPopupList.querySelector('.cmd-popup__item--active');
+      if (active) active.click();
+    }
+
+    function executeCommand(key, cmd) {
+      hideCommands();
+      // 获工作区以确保可见
+      if (!workspace.classList.contains('workspace--active')) openWorkspace();
+
+      if (cmd.flow) {
+        // 链式工作流：使用第一个技能的 prompt 作为起点
+        var firstSkillKey = cmd.flow[0];
+        var firstDomain = cmd.domain;
+        // 在 PM_SKILLS 中查找
+        var skillData = null;
+        Object.keys(PM_SKILLS).forEach(function (dk) {
+          if (PM_SKILLS[dk].skills[firstSkillKey]) {
+            skillData = PM_SKILLS[dk].skills[firstSkillKey];
+            firstDomain = dk;
+          }
+        });
+        if (skillData) {
+          state.activeSkill = { domain: firstDomain, key: firstSkillKey, prompt: skillData.prompt, flow: cmd.flow };
+          workspaceInput.value = skillData.prompt;
+        } else {
+          workspaceInput.value = key + ' — 开始完整工作流程';
+        }
+      } else if (cmd.skill) {
+        // 查找技能
+        var s = null, d = null;
+        Object.keys(PM_SKILLS).forEach(function (dk) {
+          if (PM_SKILLS[dk].skills[cmd.skill]) { s = PM_SKILLS[dk].skills[cmd.skill]; d = dk; }
+        });
+        if (s) {
+          state.activeSkill = { domain: d, key: cmd.skill, prompt: s.prompt };
+          workspaceInput.value = s.prompt;
+        } else {
+          workspaceInput.value = key;
+        }
+      } else {
+        workspaceInput.value = key;
+      }
+      workspaceInput.style.height = 'auto';
+      workspaceInput.style.height = Math.min(workspaceInput.scrollHeight, 120) + 'px';
+      workspaceInput.focus();
+    }
+
     // ===== 事件绑定 =====
     // 英雄区提交
     heroSubmit.addEventListener('click', function () {
@@ -549,6 +700,20 @@
     });
 
     // 工作区
+    // 移动端侧边栏切换
+    var sidebarToggle = $('workspaceSidebarToggle');
+    if (sidebarToggle && workspaceSidebar) {
+      sidebarToggle.addEventListener('click', function () {
+        workspaceSidebar.classList.toggle('workspace__sidebar--mobile-open');
+      });
+      // 点击侧边栏技能后自动关闭
+      workspaceSidebar.addEventListener('click', function (e) {
+        if (e.target.classList.contains('sidebar__skill')) {
+          workspaceSidebar.classList.remove('workspace__sidebar--mobile-open');
+        }
+      });
+    }
+
     workspaceBack.addEventListener('click', closeWorkspace);
     workspaceNew.addEventListener('click', function () {
       state.messages = [];
@@ -565,16 +730,30 @@
       sendMessage(text);
     });
     workspaceInput.addEventListener('keydown', function (e) {
+      // 命令弹窗键盘导航
+      if (!cmdPopup.hidden) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); navigateCommands(1); return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); navigateCommands(-1); return; }
+        if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); selectCommand(); return; }
+        if (e.key === 'Escape') { e.preventDefault(); hideCommands(); return; }
+      }
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         if (state.isStreaming) return;
         var text = workspaceInput.value.trim();
-        if (text) { workspaceInput.value = ''; sendMessage(text); }
+        if (text) { workspaceInput.value = ''; hideCommands(); sendMessage(text); }
       }
     });
     workspaceInput.addEventListener('input', function () {
       workspaceInput.style.height = 'auto';
       workspaceInput.style.height = Math.min(workspaceInput.scrollHeight, 120) + 'px';
+      // 检测斜杠命令
+      var val = workspaceInput.value;
+      if (val.startsWith('/') && val.indexOf(' ') === -1) {
+        showCommands(val.slice(1));
+      } else {
+        hideCommands();
+      }
     });
 
     // 思考过程折叠
@@ -592,6 +771,9 @@
         closeWorkspace();
       }
     });
+
+    // 初始化技能侧边栏
+    initSkillSidebar();
 
     // 历史加载
     loadHistory();
