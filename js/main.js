@@ -218,9 +218,56 @@
 
     carousel.addEventListener('mouseenter', stopAutoplay);
     carousel.addEventListener('mouseleave', startAutoplay);
-    carousel.addEventListener('touchstart', stopAutoplay, { passive: true });
-    carousel.addEventListener('touchend', function () {
-      setTimeout(startAutoplay, 3000);
+    
+    // 移动端触摸滑动支持
+    var touchStartX = 0;
+    var touchEndX = 0;
+    var touchStartY = 0;
+    var touchEndY = 0;
+    var isTouching = false;
+    
+    carousel.addEventListener('touchstart', function(e) {
+      stopAutoplay();
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+      isTouching = true;
+    }, { passive: true });
+    
+    carousel.addEventListener('touchmove', function(e) {
+      if (!isTouching) return;
+      // 防止垂直滚动干扰
+      var currentY = e.changedTouches[0].screenY;
+      var deltaY = Math.abs(currentY - touchStartY);
+      var currentX = e.changedTouches[0].screenX;
+      var deltaX = Math.abs(currentX - touchStartX);
+      
+      // 水平滑动大于垂直滑动时，阻止默认滚动
+      if (deltaX > deltaY && deltaX > 10) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+    
+    carousel.addEventListener('touchend', function(e) {
+      touchEndX = e.changedTouches[0].screenX;
+      touchEndY = e.changedTouches[0].screenY;
+      isTouching = false;
+      
+      var deltaX = touchEndX - touchStartX;
+      var deltaY = touchEndY - touchStartY;
+      
+      // 判断是否为水平滑动
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+        if (deltaX < 0) {
+          // 向左滑动，下一张
+          nextSlide();
+        } else {
+          // 向右滑动，上一张
+          prevSlide();
+        }
+        resetAutoplay();
+      } else {
+        setTimeout(startAutoplay, 3000);
+      }
     }, { passive: true });
 
     startAutoplay();
@@ -369,6 +416,847 @@
     });
   }
 
+  // ============================================
+  // PM Agent 工作台
+  // ============================================
+  function initPmAgent() {
+    // API 代理地址
+    // 本地开发：http://localhost:8081（先运行 python proxy/server.py）
+    // 生产部署：替换为你的 Cloudflare Worker URL
+    var PROXY_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? 'http://localhost:8081'
+      : 'https://pm-proxy.zinong2017.workers.dev';
+
+    // DOM 引用
+    var btn = $('pmAgentBtn');
+    var chat = $('pmChat');
+    var chatBody = $('pmChatBody');
+    var chatInput = $('pmChatInput');
+    var chatSend = $('pmChatSend');
+    var thinkingEl = $('pmThinking');
+    var thinkingBody = $('pmThinkingBody');
+    var thinkingToggle = $('pmThinkingToggle');
+    var typingEl = $('pmTyping');
+    var skillsEl = $('pmSkills');
+    var newChatBtn = $('pmChatNewChat');
+    var closeBtn = $('pmChatClose');
+
+    if (!btn || !chat) return;
+
+    // ========== 状态管理 ==========
+    var state = {
+      messages: [],        // 对话历史 [{ role, content, sources, isDocument }]
+      isOpen: false,
+      isStreaming: false,
+      abortController: null,
+      currentAssistantBubble: null,  // 当前正在流式写入的 bubble 引用
+      pendingDocContent: ''          // 累积中的文档内容（用于下载）
+    };
+
+    // ========== 工具函数 ==========
+
+    // HTML 转义
+    function escapeHtml(str) {
+      var div = document.createElement('div');
+      div.appendChild(document.createTextNode(str));
+      return div.innerHTML;
+    }
+
+    // 简易 Markdown → HTML（处理 PM 文档常用格式）
+    function markdownToHtml(md) {
+      if (!md) return '';
+      var html = md;
+
+      // 转义 HTML（但不转义已有的标签）
+      // 先处理代码块（保护起来）
+      var codeBlocks = [];
+      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function (_, lang, code) {
+        var idx = codeBlocks.length;
+        codeBlocks.push('<pre><code>' + escapeHtml(code.trim()) + '</code></pre>');
+        return '%%CODEBLOCK_' + idx + '%%';
+      });
+
+      // 行内代码
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+      // 标题
+      html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
+      html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+      html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+      html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+      // 分割线
+      html = html.replace(/^---$/gm, '<hr>');
+
+      // 粗体和斜体
+      html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+      // 无序列表
+      html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+      html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+
+      // 有序列表
+      html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+      // 避免重复包裹（简单处理：连续的 <li> 用 <ol> 包裹）
+      // 这里简化处理，有序和无序在渲染时手动调整
+
+      // 引用块
+      html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+      // 合并连续引用
+      html = html.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
+
+      // 链接
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+      // 表格（简易处理：检测 | 开头的行）
+      var lines = html.split('\n');
+      var inTable = false;
+      var tableHtml = [];
+      var resultLines = [];
+
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+        // 检测表格行
+        if (line.indexOf('|') === 0 && line.lastIndexOf('|') === line.length - 1) {
+          // 跳过分隔行
+          if (/^\|[\s\-:]+\|$/.test(line)) continue;
+          if (!inTable) {
+            inTable = true;
+            tableHtml = ['<table>'];
+          }
+          var cells = line.split('|').filter(function (c) { return c.length > 0; });
+          var isHeader = (i + 1 < lines.length && /^\|[\s\-:]+\|$/.test(lines[i + 1].trim()));
+          var tag = isHeader ? 'th' : 'td';
+          tableHtml.push('<tr>' + cells.map(function (c) {
+            return '<' + tag + '>' + c.trim() + '</' + tag + '>';
+          }).join('') + '</tr>');
+          continue;
+        } else if (inTable) {
+          inTable = false;
+          tableHtml.push('</table>');
+          resultLines.push(tableHtml.join('\n'));
+          tableHtml = [];
+        }
+        resultLines.push(line);
+      }
+      // 收尾表格
+      if (inTable) {
+        tableHtml.push('</table>');
+        resultLines.push(tableHtml.join('\n'));
+      }
+      html = resultLines.join('\n');
+
+      // 段落：处理剩余的非 HTML 行
+      // 简化处理：不强制 <p> 包裹，让浏览器自然处理换行
+      html = html.replace(/\n\n/g, '<br><br>');
+
+      // 恢复代码块
+      html = html.replace(/%%CODEBLOCK_(\d+)%%/g, function (_, idx) {
+        return codeBlocks[parseInt(idx, 10)] || '';
+      });
+
+      return html;
+    }
+
+    // 滚动到底部
+    function scrollToBottom() {
+      if (chatBody) {
+        setTimeout(function () {
+          chatBody.scrollTop = chatBody.scrollHeight;
+        }, 50);
+      }
+    }
+
+    // 会话存储
+    function saveHistory() {
+      try {
+        sessionStorage.setItem('pm_chat_history', JSON.stringify(state.messages.slice(-30)));
+      } catch (e) { /* 忽略 */ }
+    }
+
+    function loadHistory() {
+      try {
+        var raw = sessionStorage.getItem('pm_chat_history');
+        if (raw) {
+          state.messages = JSON.parse(raw);
+          // 恢复 DOM
+          state.messages.forEach(function (msg) {
+            appendMessageToDom(msg.role, msg.content, msg.sources, false);
+          });
+          scrollToBottom();
+        }
+      } catch (e) { /* 忽略 */ }
+    }
+
+    function clearHistory() {
+      state.messages = [];
+      try { sessionStorage.removeItem('pm_chat_history'); } catch (e) { /* 忽略 */ }
+      if (chatBody) {
+        // 保留欢迎消息
+        chatBody.innerHTML = '<div class="pm-msg pm-msg--assistant"><div class="pm-msg__avatar" aria-hidden="true">Z</div><div class="pm-msg__content"><div class="pm-msg__bubble"><p>嗨，我是 <strong>Zinong2017 的 PM 助手</strong> 👋</p><p>点击上方快捷技能或直接输入需求，我会生成专业文档并支持 <strong>下载 Word</strong> 📥</p></div></div></div>';
+      }
+    }
+
+    // ========== DOM 渲染 ==========
+
+    // 添加消息到 DOM
+    function appendMessageToDom(role, content, sources, animate) {
+      if (!chatBody) return null;
+
+      var msgEl = document.createElement('div');
+      msgEl.className = 'pm-msg pm-msg--' + role;
+      if (animate === false) {
+        msgEl.style.animation = 'none';
+      }
+
+      var avatarInitial = role === 'user' ? '我' : 'Z';
+      var avatarHtml = '<div class="pm-msg__avatar" aria-hidden="true">' + avatarInitial + '</div>';
+
+      var contentHtml = '<div class="pm-msg__content">';
+      contentHtml += '<div class="pm-msg__bubble">' + markdownToHtml(content) + '</div>';
+
+      // 搜索引用来源
+      if (sources && sources.length > 0) {
+        contentHtml += '<div class="pm-msg__sources">📎 参考来源：';
+        sources.forEach(function (s, i) {
+          contentHtml += '<a href="' + escapeHtml(s.url) + '" target="_blank" rel="noopener noreferrer">[' + (i + 1) + '] ' + escapeHtml(s.title) + '</a> ';
+        });
+        contentHtml += '</div>';
+      }
+
+      // 助手消息：操作按钮（下载 Word / 复制）
+      if (role === 'assistant' && content && content.length > 100) {
+        contentHtml += '<div class="pm-msg__actions">';
+        contentHtml += '<button type="button" class="pm-msg__action-btn pm-msg__action-btn--download" data-action="download">📥 下载 Word</button>';
+        contentHtml += '<button type="button" class="pm-msg__action-btn pm-msg__action-btn--copy" data-action="copy">📋 复制全文</button>';
+        contentHtml += '</div>';
+      }
+
+      contentHtml += '</div>';
+      msgEl.innerHTML = avatarHtml + contentHtml;
+
+      // 绑定操作按钮事件
+      if (role === 'assistant') {
+        var downloadBtn = msgEl.querySelector('[data-action="download"]');
+        var copyBtn = msgEl.querySelector('[data-action="copy"]');
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', function () {
+            downloadAsWord(content);
+          });
+        }
+        if (copyBtn) {
+          copyBtn.addEventListener('click', function () {
+            copyFullText(content);
+          });
+        }
+      }
+
+      chatBody.appendChild(msgEl);
+      return msgEl;
+    }
+
+    // ========== Word 文档生成 ==========
+
+    function downloadAsWord(markdownContent) {
+      // 将 Markdown 转为适合 Word 的 HTML
+      var bodyHtml = markdownToHtml(markdownContent);
+
+      // 生成时间戳
+      var now = new Date();
+      var dateStr = now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0');
+
+      // 完整的 Word 兼容 HTML 文档
+      var docHtml = '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+        'xmlns:w="urn:schemas-microsoft-com:office:word" ' +
+        'xmlns="http://www.w3.org/TR/REC-html40">\n' +
+        '<head>\n' +
+        '<meta charset="utf-8">\n' +
+        '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">\n' +
+        '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View>' +
+        '<w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->\n' +
+        '<style>\n' +
+        '@page { size: A4; margin: 2cm; }\n' +
+        'body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; ' +
+        'font-size: 12pt; line-height: 1.8; color: #333; }\n' +
+        'h1 { font-size: 18pt; color: #2D3748; border-bottom: 2px solid #4299E1; ' +
+        'padding-bottom: 8px; margin-top: 20px; }\n' +
+        'h2 { font-size: 15pt; color: #2D3748; margin-top: 16px; }\n' +
+        'h3 { font-size: 13pt; color: #4299E1; margin-top: 14px; }\n' +
+        'h4 { font-size: 12pt; color: #718096; margin-top: 12px; }\n' +
+        'p { margin: 8px 0; }\n' +
+        'ul, ol { margin: 8px 0; padding-left: 24px; }\n' +
+        'li { margin: 4px 0; }\n' +
+        'table { border-collapse: collapse; width: 100%; margin: 12px 0; }\n' +
+        'th, td { border: 1px solid #E2E8F0; padding: 8px; text-align: left; }\n' +
+        'th { background: #EDF2F7; font-weight: bold; }\n' +
+        'blockquote { border-left: 4px solid #4299E1; padding: 8px 16px; ' +
+        'margin: 12px 0; color: #718096; background: #F7FAFC; }\n' +
+        'code { background: #EDF2F7; padding: 2px 6px; border-radius: 4px; ' +
+        'font-family: "SF Mono", Consolas, monospace; font-size: 10pt; }\n' +
+        'pre { background: #2D3748; color: #FFF; padding: 12px; ' +
+        'border-radius: 6px; font-size: 10pt; overflow-x: auto; }\n' +
+        'pre code { background: none; padding: 0; color: inherit; }\n' +
+        'hr { border: none; border-top: 1px solid #E2E8F0; margin: 16px 0; }\n' +
+        '.doc-meta { color: #A0AEC0; font-size: 10pt; margin-bottom: 24px; ' +
+        'border-bottom: 1px solid #E2E8F0; padding-bottom: 12px; }\n' +
+        '</style>\n</head>\n<body>\n' +
+        '<div class="doc-meta">\n' +
+        '<p>生成自 Zinong2017 PM 助手 | ' + dateStr + '</p>\n' +
+        '<p>个人站点：zinong2017.github.io</p>\n' +
+        '</div>\n' +
+        bodyHtml + '\n' +
+        '<hr>\n' +
+        '<p style="color:#A0AEC0;font-size:10pt;">本文档由 Zinong2017 AI 分身自动生成，内容仅供参考。' +
+        '© ' + now.getFullYear() + ' Zinong2017</p>\n' +
+        '</body>\n</html>';
+
+      // 生成 Blob 并触发下载（Word 能打开 .doc 文件）
+      var blob = new Blob(['﻿' + docHtml], {
+        type: 'application/msword;charset=utf-8'
+      });
+
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url;
+      // 生成有意义的文件名
+      var filename = 'PM文档_' + dateStr + '.doc';
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // ========== 复制全文 ==========
+
+    function copyFullText(text) {
+      function doCopy() {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          showCopyToast('已复制全文 ✅');
+        } catch (err) {
+          showCopyToast('复制失败，请手动选择文字');
+        }
+        document.body.removeChild(ta);
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          showCopyToast('已复制全文 ✅');
+        }).catch(doCopy);
+      } else {
+        doCopy();
+      }
+    }
+
+    // Toast 提示
+    var toastTimer = null;
+    function showCopyToast(msg) {
+      var toast = document.getElementById('pmCopyToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'pmCopyToast';
+        toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);' +
+          'background:#2D3748;color:#FFF;padding:10px 24px;border-radius:999px;' +
+          'font-size:14px;z-index:3000;pointer-events:none;transition:opacity 0.3s;';
+        document.body.appendChild(toast);
+      }
+      toast.textContent = msg;
+      toast.style.opacity = '1';
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () {
+        toast.style.opacity = '0';
+      }, 2000);
+    }
+
+    // ========== 思考过程 ==========
+
+    // PM 思考步骤预设
+    var THINKING_STEPS = [
+      { icon: '🔍', text: '理解需求：识别用户关注的产品维度和场景上下文...' },
+      { icon: '🗂', text: '检索知识库：匹配 PM 方法论和最佳实践框架...' },
+      { icon: '📋', text: '构建分析框架：组织场景-能力-体验-指标分析链...' },
+      { icon: '🧩', text: '关联案例：匹配相关产品设计实例和行业参考...' },
+      { icon: '✏️', text: '生成文档：按专业 PM 格式组织输出内容...' },
+      { icon: '✅', text: '检查完整性：确保覆盖背景/目标/功能/指标/排期...' }
+    ];
+
+    function showThinking() {
+      if (!thinkingEl || !thinkingBody) return;
+      thinkingEl.hidden = false;
+      thinkingBody.innerHTML = '';
+      thinkingEl.classList.remove('pm-thinking--open');
+      if (thinkingToggle) {
+        thinkingToggle.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    function addThinkingStep(icon, text, delay) {
+      if (!thinkingBody) return;
+      setTimeout(function () {
+        var step = document.createElement('div');
+        step.className = 'pm-thinking-step';
+        step.innerHTML = '<span class="pm-thinking-step__icon">' + icon + '</span>' +
+                         '<span>' + escapeHtml(text) + '</span>';
+        thinkingBody.appendChild(step);
+        // 自动展开
+        if (thinkingEl && thinkingToggle) {
+          thinkingEl.classList.add('pm-thinking--open');
+          thinkingToggle.setAttribute('aria-expanded', 'true');
+        }
+      }, delay || 0);
+    }
+
+    function hideThinking() {
+      if (!thinkingEl) return;
+      // 延迟隐藏，让用户看到完整思考链
+      setTimeout(function () {
+        thinkingEl.hidden = true;
+      }, 2000);
+    }
+
+    // 播放思考动画
+    function playThinkingAnimation() {
+      showThinking();
+      THINKING_STEPS.forEach(function (step, i) {
+        addThinkingStep(step.icon, step.text, i * 400 + 200);
+      });
+    }
+
+    // ========== 打字机指示器 ==========
+
+    function showTyping() {
+      if (typingEl) typingEl.hidden = false;
+      if (chatSend) {
+        chatSend.classList.add('pm-chat__send--stop');
+        chatSend.querySelector('.pm-chat__send-icon').hidden = true;
+        chatSend.querySelector('.pm-chat__stop-icon').hidden = false;
+      }
+    }
+
+    function hideTyping() {
+      if (typingEl) typingEl.hidden = true;
+      if (chatSend) {
+        chatSend.classList.remove('pm-chat__send--stop');
+        chatSend.querySelector('.pm-chat__send-icon').hidden = false;
+        chatSend.querySelector('.pm-chat__stop-icon').hidden = true;
+      }
+    }
+
+    // ========== 核心：流式 API 调用 ==========
+
+    function getSystemPrompt() {
+      return '你是 Zinong2017 的 AI 数字分身，一名专注 AI Agent 方向的产品经理。\n\n' +
+        '## 你是谁\n' +
+        '- 身份：Zinong2017 的 AI 分身，AI Agent 产品经理，产品设计专业背景\n' +
+        '- 核心理念：Agent 产品的「可预期性」比「聪明」更重要；设计思维 × 产品方法 × Agent 场景理解\n' +
+        '- 能力领域：智能体产品设计、UX/交互设计、产品策略、原型与可视化\n\n' +
+        '## 你的 PM 技能\n' +
+        '根据用户需求，自动选择最合适的技能输出专业文档：\n\n' +
+        '1. **PRD 撰写**：按标准模板输出——\n' +
+        '   背景与目标 → 用户故事（含角色/场景） → 功能需求（P0/P1/P2 优先级） → ' +
+        '   非功能需求 → 指标体系（北极星+过程+质量） → 排期与风险\n' +
+        '2. **竞品分析**：从功能、体验、定位、商业模式四个维度对比，给出差异化建议和行动项\n' +
+        '3. **需求拆解**：将高层需求拆为可执行任务，包含用户故事、功能点、优先级（MoSCoW）和依赖关系\n' +
+        '4. **产品方案评审**：从可行性、风险、体验三个角度评估，输出风险矩阵和改进建议\n' +
+        '5. **指标设计**：输出北极星指标 + 过程指标 + 质量指标三层体系，含衡量方式和目标值\n' +
+        '6. **用户访谈设计**：结构化访谈提纲 + 追问策略 + 场景脚本\n\n' +
+        '## 输出格式要求\n' +
+        '- 使用 Markdown 组织文档结构（标题层级、列表、表格）\n' +
+        '- 文档应包含：文档标题 → 版本/日期信息 → 正文（按上述模板） → 附录/参考资料\n' +
+        '- 语言：中文，专业术语可保留英文（如 PRD、MVP、KPI、ROI、SOP）\n' +
+        '- 如果包含搜索结果引用，在文中用 [来源N] 标注，文末列出参考链接\n' +
+        '- 每个结论尽量附带可操作的下一步建议\n\n' +
+        '## 回答风格\n' +
+        '- 专业结构化：按 PM 文档标准格式输出，善用表格和分点\n' +
+        '- 可执行：不给空洞建议，每个结论附带具体可操作步骤\n' +
+        '- 适度追问：如果用户需求信息不足（缺少产品背景、目标用户等），先简短追问再动笔\n' +
+        '- 展示 Agent 思维：在正式回答前用 1-2 句话说明你选择了什么分析框架\n\n' +
+        '## 边界\n' +
+        '- 只回答产品/设计/Agent 相关问题\n' +
+        '- 不扮演医生、律师等专业角色\n' +
+        '- 可描述技术方案但不写具体代码\n' +
+        '- 不确定时坦诚说明，并建议用户补充信息';
+    }
+
+    function callDeepSeekAPI(messages, enableSearch) {
+      var controller = new AbortController();
+      state.abortController = controller;
+
+      return fetch(PROXY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: messages,
+          stream: true,
+          enableSearch: !!enableSearch
+        }),
+        signal: controller.signal
+      });
+    }
+
+    // SSE 流解析
+    async function handleStream(response, bubbleEl) {
+      var reader = response.body.getReader();
+      var decoder = new TextDecoder();
+      var fullContent = '';
+      var buffer = '';
+
+      try {
+        while (true) {
+          var result = await reader.read();
+          if (result.done) break;
+
+          buffer += decoder.decode(result.value, { stream: true });
+          var lines = buffer.split('\n');
+          // 保留最后一个不完整的行
+          buffer = lines.pop() || '';
+
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line || line.indexOf('data:') !== 0) continue;
+
+            var data = line.slice(5).trim();
+            if (data === '[DONE]') break;
+
+            try {
+              var json = JSON.parse(data);
+              var delta = json.choices && json.choices[0] && json.choices[0].delta;
+              if (!delta) continue;
+
+              if (delta.content) {
+                fullContent += delta.content;
+                // 追加到 DOM
+                appendStreamText(bubbleEl, delta.content);
+              }
+            } catch (e) {
+              // 忽略 JSON 解析错误
+            }
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          throw err;
+        }
+      }
+
+      return fullContent;
+    }
+
+    // 流式追加文本 + 光标
+    var cursorSpan = null;
+    function appendStreamText(bubbleEl, text) {
+      if (!bubbleEl) return;
+      // 移除旧光标
+      if (cursorSpan && cursorSpan.parentNode) {
+        cursorSpan.parentNode.removeChild(cursorSpan);
+      }
+      // 追加文本节点
+      bubbleEl.appendChild(document.createTextNode(text));
+      // 重新渲染 Markdown（简单方式是直接更新 innerHTML，但会丢失流式体验）
+      // 这里用 innerHTML 重建（对于大段文本可能有闪烁，但确保格式正确）
+      var rawText = (bubbleEl.getAttribute('data-raw') || '') + text;
+      bubbleEl.setAttribute('data-raw', rawText);
+      bubbleEl.innerHTML = markdownToHtml(rawText);
+      // 添加闪烁光标
+      cursorSpan = document.createElement('span');
+      cursorSpan.className = 'typing-cursor';
+      bubbleEl.appendChild(cursorSpan);
+      scrollToBottom();
+    }
+
+    function removeCursor(bubbleEl) {
+      if (cursorSpan && cursorSpan.parentNode) {
+        cursorSpan.parentNode.removeChild(cursorSpan);
+        cursorSpan = null;
+      }
+      // 最终渲染
+      if (bubbleEl) {
+        var rawText = bubbleEl.getAttribute('data-raw') || '';
+        bubbleEl.innerHTML = markdownToHtml(rawText);
+      }
+    }
+
+    // ========== 发送消息主流程 ==========
+
+    async function sendMessage(text, enableSearch) {
+      if (!text || !text.trim()) return;
+      if (state.isStreaming) return;
+
+      text = text.trim();
+      state.isStreaming = true;
+
+      // 隐藏技能卡片
+      if (skillsEl) skillsEl.style.display = 'none';
+
+      // 添加用户消息
+      state.messages.push({ role: 'user', content: text });
+      appendMessageToDom('user', text, null, true);
+      scrollToBottom();
+
+      // 播放思考动画
+      playThinkingAnimation();
+
+      // 构建 messages（不含 system prompt 的历史消息 + 新 system prompt）
+      var systemMsg = { role: 'system', content: getSystemPrompt() };
+      var apiMessages = [systemMsg].concat(state.messages.slice(-20));
+
+      // 显示打字指示器（在思考动画结束后）
+      setTimeout(function () {
+        hideThinking();
+        showTyping();
+      }, THINKING_STEPS.length * 400 + 400);
+
+      // 创建空的助手消息 bubble
+      var msgEl = document.createElement('div');
+      msgEl.className = 'pm-msg pm-msg--assistant';
+      msgEl.innerHTML = '<div class="pm-msg__avatar" aria-hidden="true">Z</div>' +
+                        '<div class="pm-msg__content"><div class="pm-msg__bubble" data-raw=""></div></div>';
+      if (chatBody) chatBody.appendChild(msgEl);
+      var bubbleEl = msgEl.querySelector('.pm-msg__bubble');
+      state.currentAssistantBubble = bubbleEl;
+      scrollToBottom();
+
+      try {
+        // 调用 API
+        var response = await callDeepSeekAPI(apiMessages, enableSearch);
+
+        if (!response.ok) {
+          var errData;
+          try { errData = JSON.parse(await response.text()); } catch (e) { errData = { error: 'HTTP ' + response.status }; }
+          throw new Error((errData && errData.error) || '请求失败: ' + response.status);
+        }
+
+        // 流式读取
+        hideTyping();
+        var fullContent = await handleStream(response, bubbleEl);
+        removeCursor(bubbleEl);
+
+        if (fullContent) {
+          // 保存到历史
+          state.messages.push({ role: 'assistant', content: fullContent });
+          state.pendingDocContent = fullContent;
+
+          // 添加操作按钮（下载 Word / 复制全文）
+          var contentDiv = bubbleEl.parentNode;
+          var actionsDiv = document.createElement('div');
+          actionsDiv.className = 'pm-msg__actions';
+          actionsDiv.innerHTML = '<button type="button" class="pm-msg__action-btn pm-msg__action-btn--download" data-action="download">📥 下载 Word</button>' +
+                                 '<button type="button" class="pm-msg__action-btn pm-msg__action-btn--copy" data-action="copy">📋 复制全文</button>';
+          contentDiv.appendChild(actionsDiv);
+
+          // 绑定按钮事件
+          actionsDiv.querySelector('[data-action="download"]').addEventListener('click', function () {
+            downloadAsWord(fullContent);
+          });
+          actionsDiv.querySelector('[data-action="copy"]').addEventListener('click', function () {
+            copyFullText(fullContent);
+          });
+
+          saveHistory();
+        } else {
+          // 空响应，可能是被中止
+          bubbleEl.innerHTML = '<p style="color:var(--color-muted)">生成已停止。</p>';
+        }
+      } catch (err) {
+        hideTyping();
+        hideThinking();
+        if (err.name === 'AbortError') {
+          // 用户主动停止
+          if (bubbleEl) {
+            var stoppedText = bubbleEl.getAttribute('data-raw') || '';
+            if (stoppedText) {
+              bubbleEl.innerHTML = markdownToHtml(stoppedText) +
+                '<p style="color:#E53E3E;font-size:12px;margin-top:8px;">⏹ 已停止生成</p>';
+              state.messages.push({ role: 'assistant', content: stoppedText + '\n\n*[已停止生成]*' });
+            } else {
+              bubbleEl.innerHTML = '<p style="color:var(--color-muted)">⏹ 已停止生成</p>';
+            }
+          }
+        } else {
+          // 网络或其他错误
+          if (bubbleEl) {
+            bubbleEl.innerHTML = '<p style="color:#E53E3E;">⚠️ 抱歉，请求失败：' +
+              escapeHtml(err.message || '未知错误') + '</p>' +
+              '<p style="font-size:12px;color:var(--color-muted);">请检查网络连接后重试。如果问题持续，请确认 API 代理服务是否正常运行。</p>';
+          }
+          console.error('[Zinong2017 PM Agent]', err);
+        }
+        saveHistory();
+      } finally {
+        state.isStreaming = false;
+        state.currentAssistantBubble = null;
+        state.abortController = null;
+        hideTyping();
+        hideThinking();
+        // 检查是否显示技能卡片
+        if (skillsEl && state.messages.length <= 1) {
+          skillsEl.style.display = '';
+        }
+      }
+    }
+
+    // ========== 事件绑定 ==========
+
+    // 打开/关闭面板
+    function openPanel() {
+      state.isOpen = true;
+      btn.classList.add('pm-agent-btn--open');
+      chat.classList.add('pm-chat--visible');
+      chat.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      if (chatInput) {
+        setTimeout(function () { chatInput.focus(); }, 300);
+      }
+      scrollToBottom();
+    }
+
+    function closePanel() {
+      state.isOpen = false;
+      btn.classList.remove('pm-agent-btn--open');
+      chat.classList.remove('pm-chat--visible');
+      chat.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    function togglePanel() {
+      if (state.isOpen) {
+        closePanel();
+      } else {
+        openPanel();
+      }
+    }
+
+    // 悬浮按钮点击
+    btn.addEventListener('click', togglePanel);
+
+    // 关闭按钮
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closePanel);
+    }
+
+    // 新建对话
+    if (newChatBtn) {
+      newChatBtn.addEventListener('click', function () {
+        clearHistory();
+        if (skillsEl) skillsEl.style.display = '';
+        if (chatInput) chatInput.focus();
+      });
+    }
+
+    // 中止生成
+    if (chatSend) {
+      chatSend.addEventListener('click', function () {
+        if (state.isStreaming) {
+          // 停止生成
+          if (state.abortController) {
+            state.abortController.abort();
+          }
+        } else {
+          // 发送消息
+          var text = chatInput ? chatInput.value : '';
+          if (text.trim()) {
+            if (chatInput) chatInput.value = '';
+            // 自动判断是否需要搜索（检测关键词）
+            var needSearch = /搜索|查一|查下|最新|竞品|对比|行业|趋势|市场/i.test(text);
+            sendMessage(text, needSearch);
+          }
+        }
+      });
+    }
+
+    // 回车发送（Shift+Enter 换行）
+    if (chatInput) {
+      chatInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          if (state.isStreaming) return;
+          var text = chatInput.value;
+          if (text.trim()) {
+            chatInput.value = '';
+            var needSearch = /搜索|查一|查下|最新|竞品|对比|行业|趋势|市场/i.test(text);
+            sendMessage(text, needSearch);
+          }
+        }
+      });
+
+      // 自动调整高度
+      chatInput.addEventListener('input', function () {
+        chatInput.style.height = 'auto';
+        chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+      });
+    }
+
+    // 快捷技能按钮
+    if (skillsEl) {
+      skillsEl.querySelectorAll('.pm-skill-btn').forEach(function (skillBtn) {
+        skillBtn.addEventListener('click', function () {
+          var prompt = skillBtn.getAttribute('data-prompt') || '';
+          if (prompt) {
+            // 将快捷提示填入输入框让用户确认
+            if (chatInput) {
+              chatInput.value = prompt;
+              chatInput.style.height = 'auto';
+              chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+              chatInput.focus();
+            }
+          }
+        });
+      });
+    }
+
+    // 思考过程折叠切换
+    if (thinkingToggle && thinkingEl) {
+      thinkingToggle.addEventListener('click', function () {
+        var isOpen = thinkingEl.classList.toggle('pm-thinking--open');
+        thinkingToggle.setAttribute('aria-expanded', String(isOpen));
+      });
+    }
+
+    // ESC 关闭面板
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && state.isOpen) {
+        // 先停止生成中
+        if (state.isStreaming && state.abortController) {
+          state.abortController.abort();
+        }
+        closePanel();
+      }
+    });
+
+    // 点击面板外关闭（可选，不影响面板内操作）
+    // 不启用，因为面板是主要工作区，容易误触关闭
+
+    // 初始化：加载历史
+    loadHistory();
+
+    // 移动端：软键盘处理
+    if (typeof window.visualViewport !== 'undefined') {
+      window.visualViewport.addEventListener('resize', function () {
+        if (state.isOpen && chat) {
+          var viewport = window.visualViewport;
+          if (viewport.height < window.innerHeight * 0.8) {
+            // 软键盘弹出
+            chat.style.maxHeight = viewport.height - 20 + 'px';
+          } else {
+            chat.style.maxHeight = '';
+          }
+        }
+      });
+    }
+  }
+
   function boot() {
     safe(initNavbar);
     safe(initNavScroll);
@@ -378,6 +1266,7 @@
     safe(initLightbox);
     safe(initWechatModal);
     safe(initCopyEmail);
+    safe(initPmAgent);
   }
 
   if (document.readyState === 'loading') {

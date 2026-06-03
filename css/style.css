@@ -26,6 +26,22 @@
   --reveal-duration: 0.6s;
 }
 
+/* 安卓设备兼容性修复 */
+.android-compat {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.android-compat * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 微信浏览器兼容性 */
+.wechat-compat body {
+  /* 修复微信浏览器字体大小调整问题 */
+  -webkit-text-size-adjust: 100%;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -89,6 +105,16 @@ button {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transition: background var(--transition), box-shadow var(--transition), border-color var(--transition);
+  /* 安卓浏览器性能优化 */
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* 安卓设备：禁用模糊效果以提高性能 */
+.android-compat .navbar {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(255, 255, 255, 0.98);
 }
 
 .navbar.scrolled {
@@ -199,6 +225,7 @@ button {
   inset: var(--nav-height) 0 0 0;
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -207,6 +234,15 @@ button {
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--transition);
+  /* 安卓浏览器性能优化 */
+  will-change: opacity;
+}
+
+/* 安卓设备：禁用移动端菜单模糊效果 */
+.android-compat .mobile-nav {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(255, 255, 255, 0.99);
 }
 
 .mobile-nav.open {
@@ -297,8 +333,16 @@ button {
   margin-bottom: 16px;
   border: 1px solid rgba(255, 255, 255, 0.45);
   border-radius: 999px;
-  background: rgba(66, 153, 225, 0.25);
+  background: rgba(66, 153, 225, 0.35);
   backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* 安卓设备：禁用轮播徽章模糊效果 */
+.android-compat .carousel__badge {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(66, 153, 225, 0.5);
 }
 
 .carousel__content {
@@ -865,6 +909,773 @@ button {
 }
 
 /* ============================================
+   PM Agent — 悬浮按钮
+   ============================================ */
+.pm-agent-btn {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 1500;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--gradient-brand);
+  color: var(--color-white);
+  box-shadow: 0 4px 20px rgba(66, 153, 225, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition),
+              box-shadow var(--transition),
+              border-radius var(--transition);
+  cursor: pointer;
+}
+
+.pm-agent-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 28px rgba(66, 153, 225, 0.55);
+}
+
+.pm-agent-btn:active {
+  transform: scale(0.96);
+}
+
+.pm-agent-btn__icon,
+.pm-agent-btn__close-icon {
+  width: 26px;
+  height: 26px;
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.pm-agent-btn__icon { display: block; }
+.pm-agent-btn__close-icon { display: none; }
+
+.pm-agent-btn--open {
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(45, 55, 72, 0.15);
+}
+
+.pm-agent-btn--open .pm-agent-btn__icon { display: none; }
+.pm-agent-btn--open .pm-agent-btn__close-icon { display: block; }
+
+/* 脉冲提示点 */
+.pm-agent-btn__pulse {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #E53E3E;
+  border: 2px solid var(--color-white);
+  opacity: 0;
+  transform: scale(0);
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.pm-agent-btn__pulse--active {
+  opacity: 1;
+  transform: scale(1);
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.5); }
+  50%      { box-shadow: 0 0 0 10px rgba(229, 62, 62, 0); }
+}
+
+/* ============================================
+   PM Agent — 工作台面板
+   ============================================ */
+.pm-chat {
+  position: fixed;
+  bottom: 96px;
+  right: 28px;
+  z-index: 1500;
+  width: 440px;
+  max-width: calc(100vw - 40px);
+  max-height: 640px;
+  height: 560px;
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 40px rgba(45, 55, 72, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(16px) scale(0.95);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.pm-chat--visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* ============================================
+   PM Agent — 面板头部
+   ============================================ */
+.pm-chat__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.pm-chat__header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pm-chat__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gradient-brand);
+  color: var(--color-white);
+  font-weight: 700;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pm-chat__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.pm-chat__subtitle {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.pm-chat__header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.pm-chat__action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted);
+  transition: background var(--transition), color var(--transition);
+}
+
+.pm-chat__action-btn:hover {
+  background: var(--color-bg);
+  color: var(--color-primary);
+}
+
+/* ============================================
+   PM Agent — 技能卡片区
+   ============================================ */
+.pm-chat__skills {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.pm-chat__skills::-webkit-scrollbar {
+  display: none;
+}
+
+.pm-skill-btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-primary);
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.pm-skill-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: #EBF8FF;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.pm-skill-btn:active {
+  transform: scale(0.97);
+}
+
+/* ============================================
+   PM Agent — 消息区
+   ============================================ */
+.pm-chat__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pm-msg {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  animation: msg-fade-in 0.35s ease;
+}
+
+@keyframes msg-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pm-msg--user {
+  flex-direction: row-reverse;
+}
+
+.pm-msg__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--gradient-brand);
+  color: var(--color-white);
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pm-msg--user .pm-msg__avatar {
+  background: var(--color-primary);
+  font-size: 0.8rem;
+}
+
+.pm-msg__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.pm-msg__bubble {
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.pm-msg--assistant .pm-msg__bubble {
+  background: var(--color-white);
+  color: var(--color-primary);
+  border-top-left-radius: 4px;
+  box-shadow: var(--shadow);
+}
+
+.pm-msg--user .pm-msg__bubble {
+  background: var(--gradient-brand);
+  color: var(--color-white);
+  border-top-right-radius: 4px;
+}
+
+/* 消息内 Markdown 样式 */
+.pm-msg__bubble h1,
+.pm-msg__bubble h2,
+.pm-msg__bubble h3,
+.pm-msg__bubble h4 {
+  margin: 14px 0 8px;
+  line-height: 1.4;
+}
+
+.pm-msg__bubble h1 { font-size: 1.25rem; }
+.pm-msg__bubble h2 { font-size: 1.15rem; border-bottom: 1px solid var(--color-border); padding-bottom: 6px; }
+.pm-msg__bubble h3 { font-size: 1.05rem; }
+.pm-msg__bubble h4 { font-size: 0.95rem; }
+
+.pm-msg__bubble p {
+  margin: 6px 0;
+}
+
+.pm-msg__bubble ul,
+.pm-msg__bubble ol {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.pm-msg__bubble li {
+  margin: 4px 0;
+}
+
+.pm-msg__bubble table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.pm-msg__bubble th,
+.pm-msg__bubble td {
+  border: 1px solid var(--color-border);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.pm-msg__bubble th {
+  background: var(--color-footer-bg);
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.pm-msg__bubble code {
+  background: var(--color-footer-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.pm-msg__bubble pre {
+  background: var(--color-primary);
+  color: var(--color-white);
+  padding: 14px;
+  border-radius: var(--radius);
+  overflow-x: auto;
+  margin: 10px 0;
+  font-size: 13px;
+}
+
+.pm-msg__bubble pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+.pm-msg__bubble blockquote {
+  border-left: 3px solid var(--color-accent);
+  padding: 6px 14px;
+  margin: 10px 0;
+  color: var(--color-muted);
+  background: var(--color-footer-bg);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+/* 消息操作栏（下载按钮） */
+.pm-msg__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.pm-msg__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.pm-msg__action-btn--download {
+  background: var(--color-accent);
+  color: var(--color-white);
+}
+
+.pm-msg__action-btn--download:hover {
+  background: var(--color-accent-deep);
+  transform: translateY(-1px);
+}
+
+.pm-msg__action-btn--copy {
+  background: var(--color-white);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+
+.pm-msg__action-btn--copy:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* 搜索引用标记 */
+.pm-msg__sources {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-muted);
+  padding: 8px 12px;
+  background: #FFF8F0;
+  border-radius: var(--radius);
+  border-left: 3px solid #FBD38D;
+}
+
+.pm-msg__sources a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+/* ============================================
+   PM Agent — 思考过程
+   ============================================ */
+.pm-thinking {
+  margin: 0 16px 4px;
+  background: #FFFAF0;
+  border: 1px solid #FBD38D;
+  border-radius: var(--radius);
+  font-size: 13px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.pm-thinking__toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-primary);
+  transition: background var(--transition);
+  cursor: pointer;
+}
+
+.pm-thinking__toggle:hover {
+  background: rgba(251, 211, 141, 0.25);
+}
+
+.pm-thinking__icon {
+  font-size: 14px;
+}
+
+.pm-thinking__chevron {
+  margin-left: auto;
+  font-size: 10px;
+  transition: transform var(--transition);
+}
+
+.pm-thinking--open .pm-thinking__chevron {
+  transform: rotate(180deg);
+}
+
+.pm-thinking__body {
+  padding: 0 12px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease, padding 0.35s ease;
+}
+
+.pm-thinking--open .pm-thinking__body {
+  max-height: 300px;
+  padding: 0 12px 10px;
+  overflow-y: auto;
+}
+
+.pm-thinking-step {
+  display: flex;
+  gap: 8px;
+  padding: 5px 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 0;
+  animation: think-fade-in 0.35s ease forwards;
+}
+
+.pm-thinking-step__icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+@keyframes think-fade-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ============================================
+   PM Agent — 打字机指示器
+   ============================================ */
+.pm-chat__typing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  flex-shrink: 0;
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  opacity: 0.4;
+  animation: typing-bounce 1.4s infinite both;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40%           { transform: translateY(-5px); opacity: 1; }
+}
+
+.typing-text {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin-left: 4px;
+}
+
+/* 打字光标 */
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--color-accent);
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  animation: blink-cursor 0.8s infinite;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+/* ============================================
+   PM Agent — 输入区
+   ============================================ */
+.pm-chat__footer {
+  padding: 12px 16px;
+  background: var(--color-white);
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.pm-chat__footer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.pm-chat__input {
+  flex: 1;
+  min-height: 40px;
+  max-height: 120px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--color-primary);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  resize: none;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  line-height: 1.5;
+}
+
+.pm-chat__input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+}
+
+.pm-chat__input::placeholder {
+  color: var(--color-muted);
+  opacity: 0.7;
+}
+
+.pm-chat__send {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gradient-brand);
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.pm-chat__send:hover {
+  transform: scale(1.06);
+  box-shadow: 0 4px 14px rgba(66, 153, 225, 0.4);
+}
+
+.pm-chat__send:active {
+  transform: scale(0.95);
+}
+
+.pm-chat__send--stop {
+  background: #E53E3E;
+}
+
+.pm-chat__disclaimer {
+  text-align: center;
+  font-size: 11px;
+  color: var(--color-muted);
+  opacity: 0.6;
+  margin-top: 8px;
+}
+
+/* ============================================
+   PM Agent — 响应式：平板
+   ============================================ */
+@media (max-width: 1023px) {
+  .pm-chat {
+    width: 400px;
+    height: 520px;
+    max-height: 580px;
+  }
+}
+
+/* ============================================
+   PM Agent — 响应式：手机
+   ============================================ */
+@media (max-width: 767px) {
+  .pm-agent-btn {
+    bottom: 20px;
+    right: 16px;
+    width: 50px;
+    height: 50px;
+  }
+
+  .pm-agent-btn__icon,
+  .pm-agent-btn__close-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .pm-chat {
+    bottom: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    top: 10vh;
+  }
+
+  @supports not (height: 100dvh) {
+    .pm-chat {
+      height: calc(100vh - 60px);
+      max-height: calc(100vh - 60px);
+    }
+  }
+
+  .pm-chat__header {
+    padding: 12px 14px;
+  }
+
+  .pm-chat__avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+
+  .pm-chat__title {
+    font-size: 14px;
+  }
+
+  .pm-chat__skills {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .pm-skill-btn {
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+
+  .pm-chat__body {
+    padding: 12px;
+  }
+
+  .pm-msg__bubble {
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+
+  .pm-chat__footer {
+    padding: 10px 12px;
+  }
+
+  .pm-chat__input {
+    font-size: 16px; /* 防止 iOS 缩放 */
+    padding: 8px 12px;
+  }
+
+  .pm-chat__send {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* ============================================
+   PM Agent — 响应式：小屏手机
+   ============================================ */
+@media (max-width: 360px) {
+  .pm-chat__skills {
+    gap: 4px;
+    padding: 8px 10px;
+  }
+
+  .pm-skill-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .pm-chat__header {
+    padding: 10px 12px;
+  }
+
+  .pm-chat__body {
+    padding: 10px;
+  }
+
+  .pm-msg {
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .pm-msg__avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+
+  .pm-msg__bubble {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+}
+
+/* ============================================
    响应式：平板
    ============================================ */
 @media (max-width: 1023px) {
@@ -980,5 +1791,65 @@ button {
 
   .social-links {
     gap: 20px 25px;
+  }
+}
+
+/* ============================================
+   安卓设备特定修复
+   ============================================ */
+@media (max-width: 767px) and (pointer: coarse) {
+  /* 增大触摸目标 */
+  .navbar__hamburger {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .carousel__arrow {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .mobile-nav__link {
+    padding: 12px 20px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .nav-link,
+  .btn,
+  .carousel__dot {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* 禁用复杂动画以提升性能 */
+  .skill-card:hover,
+  .gallery__item:hover {
+    transform: none;
+  }
+  
+  .gallery__item:hover img {
+    transform: none;
+  }
+}
+
+/* 小屏幕安卓设备 */
+@media (max-width: 360px) {
+  .carousel__title {
+    font-size: 1.25rem;
+  }
+  
+  .carousel__subtitle {
+    font-size: 0.85rem;
+  }
+  
+  .about__avatar {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .about__avatar--brand {
+    font-size: 3rem;
   }
 }

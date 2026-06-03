@@ -2,9 +2,12 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
   <meta name="format-detection" content="telephone=no">
   <meta name="theme-color" content="#F7FAFC">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="description" content="Zinong2017 — AI Agent 产品经理 · 产品设计专业 · 专注智能体体验与产品策略">
   <title>Zinong2017 | AI Agent 产品经理</title>
   <!-- GitHub Pages 子路径：修复安卓/微信浏览器相对路径 404 -->
@@ -13,10 +16,23 @@
     (function () {
       var host = location.hostname || '';
       var path = location.pathname || '/';
-      if (/github\.io$/i.test(host)) {
+      var isGitHub = /github\.io$/i.test(host);
+      var isAndroid = /Android/i.test(navigator.userAgent);
+      var isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+      
+      if (isGitHub) {
         document.getElementById('site-base').href = '/zinong2017/';
         if (/\/zinong2017$/.test(path)) {
           location.replace(path + '/' + location.search + location.hash);
+        }
+      }
+      
+      // 安卓/微信浏览器兼容性修复
+      if (isAndroid || isWeChat) {
+        document.documentElement.classList.add('android-compat');
+        // 修复微信浏览器缓存问题
+        if (isWeChat) {
+          document.documentElement.classList.add('wechat-compat');
         }
       }
     })();
@@ -311,6 +327,108 @@
       <img class="modal__qr" src="assets/img/wechat-qr.png" alt="微信二维码" width="200" height="200" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23F7FAFC%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22 fill=%22%23718096%22 font-size=%2214%22%3E%E6%9B%BF%E6%8D%A2%E4%BA%8C%E7%BB%B4%E7%A0%81%3C/text%3E%3C/svg%3E'">
       <p class="modal__hint">扫码备注「Agent 产品」更易通过</p>
     </div>
+  </div>
+
+  <!-- PM Agent 悬浮入口按钮 -->
+  <button type="button"
+          class="pm-agent-btn"
+          id="pmAgentBtn"
+          aria-label="与 Zinong2017 的 AI 分身对话"
+          title="PM 助手 · 写 PRD / 竞品分析 / 需求拆解">
+    <svg class="pm-agent-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+    <svg class="pm-agent-btn__close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M18 6L6 18M6 6l12 12"/>
+    </svg>
+  </button>
+
+  <!-- PM Agent 工作台面板 -->
+  <div class="pm-chat" id="pmChat" aria-hidden="true" role="dialog" aria-label="PM Agent 工作台">
+    <!-- 面板头部 -->
+    <header class="pm-chat__header">
+      <div class="pm-chat__header-left">
+        <div class="pm-chat__avatar" aria-hidden="true">Z</div>
+        <div class="pm-chat__header-text">
+          <h3 class="pm-chat__title">Zinong2017 · PM 助手</h3>
+          <p class="pm-chat__subtitle">AI 数字分身 · 写 PRD / 竞品分析 / 需求拆解</p>
+        </div>
+      </div>
+      <div class="pm-chat__header-actions">
+        <button type="button" class="pm-chat__action-btn" id="pmChatNewChat" title="新建对话" aria-label="新建对话">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <button type="button" class="pm-chat__action-btn" id="pmChatClose" title="关闭面板" aria-label="关闭面板">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 快捷技能区 -->
+    <div class="pm-chat__skills" id="pmSkills">
+      <button type="button" class="pm-skill-btn" data-prompt="请帮我写一份 AI 产品的 PRD 文档。产品方向由你推荐一个热门的 AI Agent 场景。请按标准 PM 格式输出：背景与目标、用户故事、功能需求、非功能需求、指标体系、排期与风险。">📝 写 PRD</button>
+      <button type="button" class="pm-skill-btn" data-prompt="请做一份竞品分析。对比两个主流 AI Agent 平台（如 Coze 和 Dify），从功能、体验、定位、商业模式四个维度分析，给出差异化建议。需要搜索最新信息。">🔍 竞品分析</button>
+      <button type="button" class="pm-skill-btn" data-prompt="帮我做一个需求拆解。我会在下面描述一个产品需求，请将它拆成可执行的开发任务，包含用户故事、功能点、优先级和依赖关系。">🧩 需求拆解</button>
+      <button type="button" class="pm-skill-btn" data-prompt="请帮我设计一套 AI Agent 产品的核心指标体系。包含北极星指标、过程指标、质量指标三层，并说明每个指标的衡量方式和目标值范围。">📊 指标设计</button>
+    </div>
+
+    <!-- 对话消息区 -->
+    <div class="pm-chat__body" id="pmChatBody">
+      <!-- 欢迎消息 -->
+      <div class="pm-msg pm-msg--assistant">
+        <div class="pm-msg__avatar" aria-hidden="true">Z</div>
+        <div class="pm-msg__content">
+          <div class="pm-msg__bubble">
+            <p>嗨，我是 <strong>Zinong2017 的 PM 助手</strong> 👋</p>
+            <p>我可以帮你：</p>
+            <ul>
+              <li>📝 <strong>撰写 PRD</strong> — 按标准模板输出完整产品需求文档</li>
+              <li>🔍 <strong>竞品分析</strong> — 多维度对比 + 搜索最新市场信息</li>
+              <li>🧩 <strong>需求拆解</strong> — 用户故事 + 功能点 + 优先级矩阵</li>
+              <li>📐 <strong>方案评审</strong> — 风险评估 + 体验优化建议</li>
+              <li>📊 <strong>指标设计</strong> — 北极星 + 过程 + 质量指标</li>
+            </ul>
+            <p>点击上方快捷技能或直接输入你的需求，我会生成专业文档并支持 <strong>下载 Word</strong> 📥</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 思考过程展示区 -->
+    <div class="pm-thinking" id="pmThinking" hidden>
+      <button type="button" class="pm-thinking__toggle" id="pmThinkingToggle" aria-expanded="false">
+        <span class="pm-thinking__icon">🧠</span>
+        <span class="pm-thinking__label">思考过程</span>
+        <span class="pm-thinking__chevron" aria-hidden="true">▾</span>
+      </button>
+      <div class="pm-thinking__body" id="pmThinkingBody"></div>
+    </div>
+
+    <!-- 打字机指示器 -->
+    <div class="pm-chat__typing" id="pmTyping" hidden>
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+      <span class="typing-text">正在生成文档...</span>
+    </div>
+
+    <!-- 输入区域 -->
+    <footer class="pm-chat__footer">
+      <div class="pm-chat__footer-row">
+        <textarea class="pm-chat__input"
+                  id="pmChatInput"
+                  rows="1"
+                  placeholder="输入你的 PM 需求，例如：帮我写一份智能客服 Agent 的 PRD..."
+                  aria-label="输入需求"
+                  maxlength="3000"></textarea>
+        <button type="button" class="pm-chat__send" id="pmChatSend" aria-label="发送">
+          <svg class="pm-chat__send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          <svg class="pm-chat__stop-icon" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" hidden><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        </button>
+      </div>
+      <p class="pm-chat__disclaimer">Zinong2017 AI 分身 · 内容由 DeepSeek 生成 · 仅供参考</p>
+    </footer>
   </div>
 
   <script src="js/main.js" defer></script>
