@@ -608,39 +608,6 @@
       }
     }
 
-      setTimeout(function () { hideThinking(); showTyping(); }, THINKING_STEPS.length * 350 + 400);
-
-      var msgEl = document.createElement('div');
-      msgEl.className = 'chat-msg chat-msg--assistant';
-      msgEl.innerHTML = '<div class="chat-msg__avatar">Z</div><div class="chat-msg__bubble" data-raw=""></div>';
-      workspaceBody.appendChild(msgEl);
-      var bubbleEl = msgEl.querySelector('.chat-msg__bubble');
-      state.currentBubble = bubbleEl;
-
-      try {
-        var resp = await callDeepSeekAPI(apiMessages);
-        if (!resp.ok) throw new Error('API 错误: ' + resp.status);
-        hideTyping();
-        var content = await handleStream(resp, bubbleEl);
-        removeCursor(bubbleEl);
-        if (content) {
-          state.messages.push({ role: 'assistant', content: content });
-          addActions(bubbleEl, content);
-          saveHistory();
-        }
-      } catch (err) {
-        hideTyping(); hideThinking();
-        if (err.name === 'AbortError') {
-          bubbleEl.innerHTML = markdownToHtml((bubbleEl.getAttribute('data-raw') || '') + '\n\n*[已停止]*');
-        } else {
-          bubbleEl.innerHTML = '<p style="color:#EF4444">请求失败: ' + escapeHtml(err.message) + '</p>';
-        }
-      } finally {
-        state.isStreaming = false; state.currentBubble = null; state.abortController = null;
-        hideTyping();
-      }
-    }
-
     // ===== 历史存储 =====
     function saveHistory() {
       try { sessionStorage.setItem('pm_history', JSON.stringify(state.messages.slice(-30))); } catch (e) {}
