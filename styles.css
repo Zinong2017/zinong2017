@@ -632,11 +632,12 @@ dd {
   border-radius: 8px;
   color: #fff;
   flex: 0 0 auto;
+  overflow: hidden;
 }
 
 .platform-icon svg {
-  width: 25px;
-  height: 25px;
+  width: 29px;
+  height: 29px;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -645,27 +646,87 @@ dd {
 }
 
 .douyin-icon {
-  background: #111;
-  box-shadow:
-    5px 0 0 rgba(36, 242, 238, 0.65),
-    -5px 0 0 rgba(255, 47, 102, 0.55);
+  background: #08090d;
 }
 
 .douyin-icon svg {
-  fill: currentColor;
+  width: 31px;
+  height: 31px;
   stroke: none;
 }
 
+.dy-red {
+  fill: #fe2c55;
+}
+
+.dy-cyan {
+  fill: #25f4ee;
+}
+
+.dy-white {
+  fill: #fff;
+}
+
 .bilibili-icon {
-  background: #00a1d6;
+  background: #00aeec;
+}
+
+.bilibili-icon svg {
+  stroke: none;
+}
+
+.bili-tv {
+  fill: #fff;
+}
+
+.bili-antenna {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.8;
+}
+
+.bili-face {
+  fill: none;
+  stroke: #00aeec;
+  stroke-width: 2.2;
 }
 
 .weibo-icon {
-  background: #e6162d;
+  background: linear-gradient(135deg, #ff7a21 0%, #e6162d 48%, #bd0b2f 100%);
+}
+
+.weibo-icon svg {
+  width: 31px;
+  height: 31px;
+  stroke: none;
+}
+
+.weibo-signal {
+  fill: none;
+  stroke: #ffd15c;
+  stroke-width: 2.5;
+}
+
+.weibo-eye,
+.weibo-highlight {
+  fill: #fff;
+}
+
+.weibo-pupil {
+  fill: #191716;
 }
 
 .rednote-icon {
   background: #ff2442;
+}
+
+.rednote-mark {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.05;
 }
 
 .platform-status {
