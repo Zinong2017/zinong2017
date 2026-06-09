@@ -33,6 +33,76 @@ body {
   line-height: 1.65;
 }
 
+.cursor-glow,
+.cursor-trail,
+.cursor-trail span {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.cursor-glow {
+  --cursor-x: -100px;
+  --cursor-y: -100px;
+  --cursor-scale: 1;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 8%, rgba(39, 244, 235, 0.9) 9% 18%, rgba(39, 244, 235, 0.35) 30%, rgba(39, 244, 235, 0) 68%);
+  box-shadow:
+    0 0 18px rgba(39, 244, 235, 0.56),
+    0 0 44px rgba(39, 244, 235, 0.26);
+  mix-blend-mode: screen;
+  opacity: 0;
+  transform: translate3d(var(--cursor-x), var(--cursor-y), 0) translate(-50%, -50%) scale(var(--cursor-scale));
+  transition:
+    opacity 180ms ease,
+    width 180ms ease,
+    height 180ms ease;
+}
+
+.cursor-glow::after {
+  content: "";
+  position: absolute;
+  inset: -20px;
+  border-radius: inherit;
+  background: radial-gradient(circle, rgba(32, 217, 210, 0.16), transparent 64%);
+}
+
+.cursor-glow.is-active {
+  opacity: 1;
+}
+
+.cursor-glow.is-pressing {
+  --cursor-scale: 0.72;
+}
+
+.cursor-trail {
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.cursor-trail.is-active {
+  opacity: 1;
+}
+
+.cursor-trail span {
+  --trail-x: -100px;
+  --trail-y: -100px;
+  --trail-size: 10px;
+  --trail-alpha: 0.24;
+  width: var(--trail-size);
+  height: var(--trail-size);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(39, 244, 235, var(--trail-alpha)) 0 24%, rgba(39, 244, 235, 0) 72%);
+  filter: blur(1px);
+  mix-blend-mode: screen;
+  transform: translate3d(var(--trail-x), var(--trail-y), 0) translate(-50%, -50%);
+}
+
 a {
   color: inherit;
   text-decoration: none;

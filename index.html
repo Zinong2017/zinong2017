@@ -8,7 +8,7 @@
       name="description"
       content="Zinong，AI Native Product Manager，把复杂 AI 能力转化为上手即用的产品体验。"
     />
-    <link rel="stylesheet" href="styles.css?v=20260609-icons" />
+    <link rel="stylesheet" href="styles.css?v=20260609-cursor" />
   </head>
   <body>
     <header class="site-header">
@@ -226,6 +226,60 @@
           card.style.setProperty("--my", `${event.clientY - rect.top}px`);
         });
       });
+
+      const canUseCursorEffect =
+        window.matchMedia("(hover: hover) and (pointer: fine)").matches &&
+        !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      if (canUseCursorEffect) {
+        const cursor = document.createElement("span");
+        const trailWrap = document.createElement("span");
+        const trailItems = Array.from({ length: 9 }, () => document.createElement("span"));
+        const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        const current = { x: pointer.x, y: pointer.y };
+        const history = trailItems.map(() => ({ x: pointer.x, y: pointer.y }));
+
+        cursor.className = "cursor-glow";
+        trailWrap.className = "cursor-trail";
+        trailItems.forEach((item) => trailWrap.appendChild(item));
+        document.body.append(cursor, trailWrap);
+
+        const setActive = (active) => {
+          cursor.classList.toggle("is-active", active);
+          trailWrap.classList.toggle("is-active", active);
+        };
+
+        window.addEventListener("pointermove", (event) => {
+          pointer.x = event.clientX;
+          pointer.y = event.clientY;
+          setActive(true);
+        });
+
+        window.addEventListener("pointerleave", () => setActive(false));
+        window.addEventListener("pointerdown", () => cursor.classList.add("is-pressing"));
+        window.addEventListener("pointerup", () => cursor.classList.remove("is-pressing"));
+
+        const renderCursor = () => {
+          current.x += (pointer.x - current.x) * 0.24;
+          current.y += (pointer.y - current.y) * 0.24;
+          history.unshift({ x: current.x, y: current.y });
+          history.splice(trailItems.length);
+
+          cursor.style.setProperty("--cursor-x", `${current.x}px`);
+          cursor.style.setProperty("--cursor-y", `${current.y}px`);
+          trailItems.forEach((item, index) => {
+            const point = history[index] || current;
+            item.style.setProperty("--trail-x", `${point.x}px`);
+            item.style.setProperty("--trail-y", `${point.y}px`);
+            item.style.setProperty("--trail-size", `${18 - index * 1.35}px`);
+            item.style.setProperty("--trail-alpha", `${0.34 - index * 0.03}`);
+          });
+
+          requestAnimationFrame(renderCursor);
+        };
+
+        renderCursor();
+      }
     </script>
   </body>
 </html>
